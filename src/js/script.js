@@ -365,8 +365,11 @@ function initializeCombinedEOTFGraph() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 2000]  // Use linear scale with reasonable range
-            // Log scale causing severe performance issues with Plotly
+            type: 'log',
+            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
+            tickmode: 'array',  // Manual tick specification for performance
+            tickvals: [0.1, 1, 10, 100, 1000, 10000],
+            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         },
         showlegend: true,
         legend: {
@@ -393,7 +396,10 @@ function initializeCombinedEOTFGraph() {
     const traces = [
         {
             x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+            y: encodedValues.map(v => {
+                const brightness = TransferFunctions.sRGB.decode(v) * peakBrightness;
+                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
             name: `sRGB (${peakBrightness} nits)`,
@@ -402,7 +408,10 @@ function initializeCombinedEOTFGraph() {
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+            y: encodedValues.map(v => {
+                const brightness = TransferFunctions.PQ.decode(v) * 10000;
+                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (10000 nits)',
@@ -411,7 +420,10 @@ function initializeCombinedEOTFGraph() {
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+            y: encodedValues.map(v => {
+                const brightness = Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness;
+                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
             name: `HLG (${peakBrightness} nits)`,
@@ -650,8 +662,11 @@ function updateEOTFGraphs() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0.1, 10000],
-            type: 'log'
+            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
+            type: 'log',
+            tickmode: 'array',
+            tickvals: [0.1, 1, 10, 100, 1000, 10000],
+            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         }
     };
     Plotly.react('pqGraph', pqTraces, pqLayout);
