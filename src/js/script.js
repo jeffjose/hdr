@@ -20,6 +20,9 @@ const TransferFunctions = {
     
     // PQ (Perceptual Quantizer) - ST.2084
     PQ: {
+        // PQ expects normalized input (0-1) but we'll support extended range
+        // Input: relative linear light (0-1 SDR, >1 for HDR)
+        // Output: PQ signal value (0-1 for SDR, can exceed 1 for HDR)
         encode: (linear) => {
             // PQ constants
             const m1 = 0.1593017578125;
@@ -28,8 +31,8 @@ const TransferFunctions = {
             const c2 = 18.8515625;
             const c3 = 18.6875;
             
-            // Normalize to 0-1 range (assuming peak luminance of 10000 nits)
-            const Y = Math.max(0, Math.min(1, linear));
+            // Don't clamp - allow HDR values
+            const Y = Math.max(0, linear);
             const Ym1 = Math.pow(Y, m1);
             const num = c1 + c2 * Ym1;
             const den = 1 + c3 * Ym1;
@@ -42,7 +45,7 @@ const TransferFunctions = {
             const c2 = 18.8515625;
             const c3 = 18.6875;
             
-            const E = Math.max(0, Math.min(1, pq));
+            const E = Math.max(0, pq);
             const Em1 = Math.pow(E, 1/m2);
             const num = Math.max(0, Em1 - c1);
             const den = c2 - c3 * Em1;
@@ -53,6 +56,9 @@ const TransferFunctions = {
     
     // HLG (Hybrid Log-Gamma) - BT.2100
     HLG: {
+        // HLG system gamma = 1.2, reference white = 1.0
+        // Input: relative linear light (0-1 SDR, up to ~12 for HDR)
+        // Output: HLG signal value (0-1 for SDR, up to ~1.5 for HDR)
         encode: (linear) => {
             const a = 0.17883277;
             const b = 0.28466892;
@@ -92,19 +98,19 @@ let lastUpdateTime = 0; // For throttling
 
 // Initialize graphs
 function initializeGraphs() {
-    const layout = {
+    const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 30, r: 30, b: 40, l: 50 },
+        margin: { t: 30, r: 30, b: 50, l: 60 },
         xaxis: {
-            title: 'Linear Input',
+            title: 'Linear Light Input (0=black, 1=SDR white)',
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1]
         },
         yaxis: {
-            title: 'Encoded Output',
+            title: 'Encoded Signal Output',
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1]
@@ -133,8 +139,8 @@ function initializeGraphs() {
     const numPoints = 256;
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
-    // sRGB graph
-    const srgbLayout = {...layout, title: 'sRGB Transfer Function'};
+    // sRGB graph (SDR only)
+    const srgbLayout = {...sdrLayout, title: 'sRGB Transfer Function (SDR)'};
     const srgbCurve = linearValues.map(v => TransferFunctions.sRGB.encode(v));
     Plotly.newPlot('srgbGraph', [{
         x: linearValues,
@@ -146,11 +152,24 @@ function initializeGraphs() {
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], srgbLayout, config);
     
-    // PQ graph
-    const pqLayout = {...layout, title: 'PQ (ST.2084) Transfer Function'};
-    const pqCurve = linearValues.map(v => TransferFunctions.PQ.encode(v));
+    // PQ graph (HDR - extends to 2.5x SDR)
+    const pqLayout = {
+        ...sdrLayout,
+        title: 'PQ (ST.2084) Transfer Function (HDR)',
+        xaxis: {
+            ...sdrLayout.xaxis,
+            title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
+            range: [0, 2.5]
+        },
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [0, 1.2]
+        }
+    };
+    const pqLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 2.5);
+    const pqCurve = pqLinearValues.map(v => TransferFunctions.PQ.encode(v));
     Plotly.newPlot('pqGraph', [{
-        x: linearValues,
+        x: pqLinearValues,
         y: pqCurve,
         type: 'scatter',
         mode: 'lines',
@@ -159,11 +178,24 @@ function initializeGraphs() {
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], pqLayout, config);
     
-    // HLG graph
-    const hlgLayout = {...layout, title: 'HLG (BT.2100) Transfer Function'};
-    const hlgCurve = linearValues.map(v => TransferFunctions.HLG.encode(v));
+    // HLG graph (HDR - extends to 5x SDR)
+    const hlgLayout = {
+        ...sdrLayout,
+        title: 'HLG (BT.2100) Transfer Function (HDR)',
+        xaxis: {
+            ...sdrLayout.xaxis,
+            title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
+            range: [0, 5]
+        },
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [0, 1.3]
+        }
+    };
+    const hlgLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 5);
+    const hlgCurve = hlgLinearValues.map(v => TransferFunctions.HLG.encode(v));
     Plotly.newPlot('hlgGraph', [{
-        x: linearValues,
+        x: hlgLinearValues,
         y: hlgCurve,
         type: 'scatter',
         mode: 'lines',
@@ -182,18 +214,19 @@ function initializeCombinedGraph() {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 40, r: 30, b: 40, l: 50 },
+        margin: { t: 40, r: 30, b: 50, l: 60 },
         xaxis: {
-            title: 'Linear Input',
+            title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 3],
+            dtick: 0.5
         },
         yaxis: {
-            title: 'Encoded Output',
+            title: 'Encoded Signal Output',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 1.3]
         },
         showlegend: true,
         legend: {
@@ -215,12 +248,14 @@ function initializeCombinedGraph() {
     };
     
     const numPoints = 256;
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Use extended range for combined view to show HDR capabilities
+    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
     
     const traces = [
         {
             x: linearValues,
-            y: linearValues.map(v => TransferFunctions.sRGB.encode(v)),
+            // sRGB only valid up to 1.0, clamp beyond that
+            y: linearValues.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1),
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
@@ -388,7 +423,19 @@ function updateGraphs() {
         });
     }
     
-    const pqLayout = {...darkLayout, title: 'PQ (ST.2084) Transfer Function'};
+    const pqLayout = {
+        ...darkLayout, 
+        title: 'PQ (ST.2084) Transfer Function (HDR)',
+        xaxis: {
+            ...darkLayout.xaxis,
+            title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
+            range: [0, 2.5]
+        },
+        yaxis: {
+            ...darkLayout.yaxis,
+            range: [0, 1.2]
+        }
+    };
     Plotly.react('pqGraph', pqTraces, pqLayout);
     
     // HLG
@@ -413,7 +460,19 @@ function updateGraphs() {
         });
     }
     
-    const hlgLayout = {...darkLayout, title: 'HLG (BT.2100) Transfer Function'};
+    const hlgLayout = {
+        ...darkLayout, 
+        title: 'HLG (BT.2100) Transfer Function (HDR)',
+        xaxis: {
+            ...darkLayout.xaxis,
+            title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
+            range: [0, 5]
+        },
+        yaxis: {
+            ...darkLayout.yaxis,
+            range: [0, 1.3]
+        }
+    };
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
     
     // Update combined graph if needed
@@ -564,7 +623,8 @@ function updateCombinedGraph() {
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 256;
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Use extended range for combined view to show HDR capabilities
+    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
     
     const traces = [];
     
@@ -588,7 +648,8 @@ function updateCombinedGraph() {
         traces.push(
             {
                 x: linearValues,
-                y: linearValues.map(v => TransferFunctions.sRGB.encode(v)),
+                // sRGB only valid up to 1.0, clamp beyond that
+                y: linearValues.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB',
@@ -663,18 +724,19 @@ function updateCombinedGraph() {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 40, r: 30, b: 40, l: 50 },
+        margin: { t: 40, r: 30, b: 50, l: 60 },
         xaxis: {
-            title: 'Linear Input',
+            title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 3],
+            dtick: 0.5
         },
         yaxis: {
-            title: 'Encoded Output',
+            title: 'Encoded Signal Output',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 1.3]
         },
         showlegend: true,
         legend: {
