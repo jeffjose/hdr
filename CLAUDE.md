@@ -3,6 +3,29 @@
 ## Overview
 This is an advanced HDR (High Dynamic Range) image analysis tool that provides real-time visualization of various HDR transfer functions and color analysis capabilities. The application is designed for professionals working with HDR content, color grading, and display calibration.
 
+## Quick Start
+
+### Prerequisites
+- Node.js v18+ 
+- pnpm package manager
+
+### Development Setup
+```bash
+# Install dependencies
+pnpm install
+
+# Run development server
+pnpm run dev
+
+# Build for production
+pnpm run build
+
+# Preview production build
+pnpm run preview
+```
+
+The development server runs on `http://localhost:5173` with hot module replacement enabled.
+
 ## Current Features
 
 ### Image Analysis
