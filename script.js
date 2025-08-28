@@ -82,11 +82,11 @@ const TransferFunctions = {
 
 // Global variables
 let imageData = null;
-let pixelSamples = [];
 let canvas = null;
 let ctx = null;
 let currentHoverPixel = null;
 let viewMode = 'separate'; // 'separate' or 'combined'
+let histogram = null; // Store histogram data
 
 // Initialize graphs
 function initializeGraphs() {
@@ -112,12 +112,19 @@ function initializeGraphs() {
             x: 0.02,
             y: 0.98,
             bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
         }
     };
     
     const config = {
         responsive: true,
-        displayModeBar: false
+        displayModeBar: false,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['toImage']
     };
     
     // Generate transfer curves
@@ -133,7 +140,8 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
-        line: { color: '#4a9eff', width: 2 }
+        line: { color: '#4a9eff', width: 2 },
+        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], srgbLayout, config);
     
     // PQ graph
@@ -145,7 +153,8 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
-        line: { color: '#ff6b6b', width: 2 }
+        line: { color: '#ff6b6b', width: 2 },
+        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], pqLayout, config);
     
     // HLG graph
@@ -157,27 +166,183 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
-        line: { color: '#51cf66', width: 2 }
+        line: { color: '#51cf66', width: 2 },
+        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
+    
+    // Initialize combined graph
+    initializeCombinedGraph();
 }
 
-// Update graphs with pixel data
-function updateGraphsWithPixels() {
-    if (!pixelSamples.length) return;
+// Initialize combined graph
+function initializeCombinedGraph() {
+    const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 40, r: 30, b: 40, l: 50 },
+        xaxis: {
+            title: 'Linear Input',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Encoded Output',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        },
+        title: 'All Transfer Functions'
+    };
     
-    const showCurves = document.getElementById('showCurves').checked;
-    const showPixels = document.getElementById('showPixels').checked;
+    const config = {
+        responsive: true,
+        displayModeBar: false
+    };
     
     const numPoints = 256;
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
-    // Prepare pixel data for plotting
-    const pixelLinearR = pixelSamples.map(p => p.linear.r);
-    const pixelLinearG = pixelSamples.map(p => p.linear.g);
-    const pixelLinearB = pixelSamples.map(p => p.linear.b);
+    const traces = [
+        {
+            x: linearValues,
+            y: linearValues.map(v => TransferFunctions.sRGB.encode(v)),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'sRGB',
+            line: { color: '#4a9eff', width: 2 },
+            hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        },
+        {
+            x: linearValues,
+            y: linearValues.map(v => TransferFunctions.PQ.encode(v)),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'PQ',
+            line: { color: '#ff6b6b', width: 2 },
+            hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        },
+        {
+            x: linearValues,
+            y: linearValues.map(v => TransferFunctions.HLG.encode(v)),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'HLG',
+            line: { color: '#51cf66', width: 2 },
+            hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        }
+    ];
+    
+    Plotly.newPlot('combinedGraph', traces, layout, config);
+}
+
+// Calculate histogram from image data
+function calculateHistogram(imageData) {
+    const bins = 100; // Number of histogram bins
+    const histogramR = new Array(bins).fill(0);
+    const histogramG = new Array(bins).fill(0);
+    const histogramB = new Array(bins).fill(0);
+    const histogramLuminance = new Array(bins).fill(0);
+    
+    const data = imageData.data;
+    const totalPixels = imageData.width * imageData.height;
+    
+    for (let i = 0; i < data.length; i += 4) {
+        // Get sRGB values (0-1)
+        const srgb = {
+            r: data[i] / 255,
+            g: data[i + 1] / 255,
+            b: data[i + 2] / 255
+        };
+        
+        // Convert to linear
+        const linear = {
+            r: TransferFunctions.sRGB.decode(srgb.r),
+            g: TransferFunctions.sRGB.decode(srgb.g),
+            b: TransferFunctions.sRGB.decode(srgb.b)
+        };
+        
+        // Calculate luminance (using BT.709 coefficients)
+        const luminance = 0.2126 * linear.r + 0.7152 * linear.g + 0.0722 * linear.b;
+        
+        // Determine bin index (0 to bins-1)
+        const binR = Math.min(Math.floor(linear.r * bins), bins - 1);
+        const binG = Math.min(Math.floor(linear.g * bins), bins - 1);
+        const binB = Math.min(Math.floor(linear.b * bins), bins - 1);
+        const binL = Math.min(Math.floor(luminance * bins), bins - 1);
+        
+        histogramR[binR]++;
+        histogramG[binG]++;
+        histogramB[binB]++;
+        histogramLuminance[binL]++;
+    }
+    
+    // Normalize histograms (convert to percentages)
+    const normalize = (hist) => hist.map(count => (count / totalPixels) * 100);
+    
+    return {
+        r: normalize(histogramR),
+        g: normalize(histogramG),
+        b: normalize(histogramB),
+        luminance: normalize(histogramLuminance),
+        bins: bins,
+        binWidth: 1 / bins
+    };
+}
+
+// Update graphs
+function updateGraphs() {
+    const showCurves = document.getElementById('showCurves').checked;
+    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
+    
+    const numPoints = 256;
+    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB
     const srgbTraces = [];
+    
+    // Add histogram if available and enabled
+    if (showHistogram && histogram) {
+        const histX = [];
+        const histY = [];
+        for (let i = 0; i < histogram.bins; i++) {
+            const x = (i + 0.5) * histogram.binWidth;
+            histX.push(x);
+            // Scale histogram to fit nicely in the graph (max height = 0.3)
+            const maxHistValue = Math.max(...histogram.luminance);
+            histY.push((histogram.luminance[i] / maxHistValue) * 0.3);
+        }
+        
+        srgbTraces.push({
+            x: histX,
+            y: histY,
+            type: 'bar',
+            name: 'Luminance Distribution',
+            marker: { 
+                color: 'rgba(255, 255, 255, 0.2)',
+                line: {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    width: 0.5
+                }
+            },
+            width: histogram.binWidth,
+            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
+            showlegend: false
+        });
+    }
+    
     if (showCurves) {
         srgbTraces.push({
             x: linearValues,
@@ -189,37 +354,7 @@ function updateGraphsWithPixels() {
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
-    if (showPixels) {
-        srgbTraces.push(
-            {
-                x: pixelLinearR,
-                y: pixelLinearR.map(v => TransferFunctions.sRGB.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'R pixels',
-                marker: { color: '#ff4444', size: 6, opacity: 0.7 },
-                hovertemplate: 'R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
-            },
-            {
-                x: pixelLinearG,
-                y: pixelLinearG.map(v => TransferFunctions.sRGB.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'G pixels',
-                marker: { color: '#44ff44', size: 6, opacity: 0.7 },
-                hovertemplate: 'G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
-            },
-            {
-                x: pixelLinearB,
-                y: pixelLinearB.map(v => TransferFunctions.sRGB.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'B pixels',
-                marker: { color: '#4444ff', size: 6, opacity: 0.7 },
-                hovertemplate: 'B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
-            }
-        );
-    }
+    
     const darkLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -243,13 +378,50 @@ function updateGraphsWithPixels() {
             y: 0.98,
             bgcolor: 'rgba(0,0,0,0.5)'
         },
-        title: 'sRGB Transfer Function'
+        title: 'sRGB Transfer Function',
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        }
     };
     
     Plotly.react('srgbGraph', srgbTraces, darkLayout);
     
     // PQ
     const pqTraces = [];
+    
+    // Add histogram for PQ
+    if (showHistogram && histogram) {
+        const histX = [];
+        const histY = [];
+        for (let i = 0; i < histogram.bins; i++) {
+            const x = (i + 0.5) * histogram.binWidth;
+            histX.push(x);
+            const maxHistValue = Math.max(...histogram.luminance);
+            // Transform histogram through PQ function for better alignment
+            const pqValue = TransferFunctions.PQ.encode(x);
+            histY.push((histogram.luminance[i] / maxHistValue) * pqValue * 0.3);
+        }
+        
+        pqTraces.push({
+            x: histX,
+            y: histY,
+            type: 'bar',
+            name: 'Luminance Distribution',
+            marker: { 
+                color: 'rgba(255, 255, 255, 0.2)',
+                line: {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    width: 0.5
+                }
+            },
+            width: histogram.binWidth,
+            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
+            showlegend: false
+        });
+    }
+    
     if (showCurves) {
         pqTraces.push({
             x: linearValues,
@@ -261,39 +433,44 @@ function updateGraphsWithPixels() {
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
-    if (showPixels) {
-        pqTraces.push(
-            {
-                x: pixelLinearR,
-                y: pixelLinearR.map(v => TransferFunctions.PQ.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'R pixels',
-                marker: { color: '#ff4444', size: 6, opacity: 0.7 }
-            },
-            {
-                x: pixelLinearG,
-                y: pixelLinearG.map(v => TransferFunctions.PQ.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'G pixels',
-                marker: { color: '#44ff44', size: 6, opacity: 0.7 }
-            },
-            {
-                x: pixelLinearB,
-                y: pixelLinearB.map(v => TransferFunctions.PQ.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'B pixels',
-                marker: { color: '#4444ff', size: 6, opacity: 0.7 }
-            }
-        );
-    }
+    
     const pqLayout = {...darkLayout, title: 'PQ (ST.2084) Transfer Function'};
     Plotly.react('pqGraph', pqTraces, pqLayout);
     
     // HLG
     const hlgTraces = [];
+    
+    // Add histogram for HLG
+    if (showHistogram && histogram) {
+        const histX = [];
+        const histY = [];
+        for (let i = 0; i < histogram.bins; i++) {
+            const x = (i + 0.5) * histogram.binWidth;
+            histX.push(x);
+            const maxHistValue = Math.max(...histogram.luminance);
+            // Transform histogram through HLG function for better alignment
+            const hlgValue = TransferFunctions.HLG.encode(x);
+            histY.push((histogram.luminance[i] / maxHistValue) * hlgValue * 0.3);
+        }
+        
+        hlgTraces.push({
+            x: histX,
+            y: histY,
+            type: 'bar',
+            name: 'Luminance Distribution',
+            marker: { 
+                color: 'rgba(255, 255, 255, 0.2)',
+                line: {
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    width: 0.5
+                }
+            },
+            width: histogram.binWidth,
+            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
+            showlegend: false
+        });
+    }
+    
     if (showCurves) {
         hlgTraces.push({
             x: linearValues,
@@ -305,34 +482,7 @@ function updateGraphsWithPixels() {
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
-    if (showPixels) {
-        hlgTraces.push(
-            {
-                x: pixelLinearR,
-                y: pixelLinearR.map(v => TransferFunctions.HLG.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'R pixels',
-                marker: { color: '#ff4444', size: 6, opacity: 0.7 }
-            },
-            {
-                x: pixelLinearG,
-                y: pixelLinearG.map(v => TransferFunctions.HLG.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'G pixels',
-                marker: { color: '#44ff44', size: 6, opacity: 0.7 }
-            },
-            {
-                x: pixelLinearB,
-                y: pixelLinearB.map(v => TransferFunctions.HLG.encode(v)),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'B pixels',
-                marker: { color: '#4444ff', size: 6, opacity: 0.7 }
-            }
-        );
-    }
+    
     const hlgLayout = {...darkLayout, title: 'HLG (BT.2100) Transfer Function'};
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
     
@@ -408,12 +558,46 @@ function highlightPixelOnGraphs(pixel) {
 // Update combined graph
 function updateCombinedGraph() {
     const showCurves = document.getElementById('showCurves').checked;
-    const showPixels = document.getElementById('showPixels').checked;
+    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 256;
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [];
+    
+    // Add histogram if enabled
+    if (showHistogram && histogram) {
+        const histX = [];
+        const histY = [];
+        for (let i = 0; i < histogram.bins; i++) {
+            const x = (i + 0.5) * histogram.binWidth;
+            histX.push(x);
+            // Use average of all transfer functions for combined view
+            const srgbValue = TransferFunctions.sRGB.encode(x);
+            const pqValue = TransferFunctions.PQ.encode(x);
+            const hlgValue = TransferFunctions.HLG.encode(x);
+            const avgValue = (srgbValue + pqValue + hlgValue) / 3;
+            const maxHistValue = Math.max(...histogram.luminance);
+            histY.push((histogram.luminance[i] / maxHistValue) * avgValue * 0.25);
+        }
+        
+        traces.push({
+            x: histX,
+            y: histY,
+            type: 'bar',
+            name: 'Luminance Distribution',
+            marker: { 
+                color: 'rgba(255, 255, 255, 0.15)',
+                line: {
+                    color: 'rgba(255, 255, 255, 0.2)',
+                    width: 0.5
+                }
+            },
+            width: histogram.binWidth,
+            hovertemplate: 'Luminance<br>Value: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
+            showlegend: true
+        });
+    }
     
     if (showCurves) {
         traces.push(
@@ -445,53 +629,6 @@ function updateCombinedGraph() {
                 hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             }
         );
-    }
-    
-    if (showPixels && pixelSamples.length) {
-        const pixelLinearR = pixelSamples.map(p => p.linear.r);
-        const pixelLinearG = pixelSamples.map(p => p.linear.g);
-        const pixelLinearB = pixelSamples.map(p => p.linear.b);
-        
-        // Add pixel samples for each curve
-        ['sRGB', 'PQ', 'HLG'].forEach((type, idx) => {
-            const func = type === 'sRGB' ? TransferFunctions.sRGB :
-                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
-            const symbol = type === 'sRGB' ? 'circle' :
-                          type === 'PQ' ? 'square' : 'diamond';
-            
-            traces.push(
-                {
-                    x: pixelLinearR,
-                    y: pixelLinearR.map(v => func.encode(v)),
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `${type} R`,
-                    marker: { color: '#ff4444', size: 5, opacity: 0.7, symbol },
-                    hovertemplate: `${type} R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
-                    legendgroup: type
-                },
-                {
-                    x: pixelLinearG,
-                    y: pixelLinearG.map(v => func.encode(v)),
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `${type} G`,
-                    marker: { color: '#44ff44', size: 5, opacity: 0.7, symbol },
-                    hovertemplate: `${type} G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
-                    legendgroup: type
-                },
-                {
-                    x: pixelLinearB,
-                    y: pixelLinearB.map(v => func.encode(v)),
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `${type} B`,
-                    marker: { color: '#4444ff', size: 5, opacity: 0.7, symbol },
-                    hovertemplate: `${type} B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
-                    legendgroup: type
-                }
-            );
-        });
     }
     
     // Add hover pixel if exists
@@ -571,44 +708,6 @@ function updateCombinedGraph() {
     Plotly.react('combinedGraph', traces, layout);
 }
 
-// Sample random pixels from the image
-function sampleRandomPixels(numSamples = 100) {
-    if (!imageData) return;
-    
-    pixelSamples = [];
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    
-    for (let i = 0; i < numSamples; i++) {
-        const x = Math.floor(Math.random() * width);
-        const y = Math.floor(Math.random() * height);
-        const idx = (y * width + x) * 4;
-        
-        // Get sRGB values (0-255)
-        const srgb = {
-            r: data[idx] / 255,
-            g: data[idx + 1] / 255,
-            b: data[idx + 2] / 255
-        };
-        
-        // Convert to linear
-        const linear = {
-            r: TransferFunctions.sRGB.decode(srgb.r),
-            g: TransferFunctions.sRGB.decode(srgb.g),
-            b: TransferFunctions.sRGB.decode(srgb.b)
-        };
-        
-        pixelSamples.push({
-            x, y,
-            srgb,
-            linear
-        });
-    }
-    
-    updateGraphsWithPixels();
-}
-
 // Generate synthetic test patterns
 function generateTestPattern(type) {
     const width = 512;
@@ -671,7 +770,8 @@ function generateTestPattern(type) {
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Synthetic
         `;
-        sampleRandomPixels();
+        histogram = calculateHistogram(imageData);
+        updateGraphs();
     };
 }
 
@@ -758,7 +858,8 @@ function generateSampleImage(type) {
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Generated
         `;
-        sampleRandomPixels();
+        histogram = calculateHistogram(imageData);
+        updateGraphs();
     };
 }
 
@@ -787,8 +888,11 @@ function handleImageUpload(file) {
                 <strong>Size:</strong> ${(file.size / 1024).toFixed(1)} KB
             `;
             
-            // Sample and plot pixels
-            sampleRandomPixels();
+            // Calculate histogram
+            histogram = calculateHistogram(imageData);
+            
+            // Update graphs
+            updateGraphs();
         };
         img.src = e.target.result;
     };
@@ -806,9 +910,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
-    const sampleButton = document.getElementById('sampleButton');
     const showCurves = document.getElementById('showCurves');
-    const showPixels = document.getElementById('showPixels');
+    const showHistogram = document.getElementById('showHistogram');
     const uploadedImage = document.getElementById('uploadedImage');
     const hoverIndicator = document.getElementById('hoverIndicator');
     const separateView = document.getElementById('separateView');
@@ -846,16 +949,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Sample button
-    sampleButton.addEventListener('click', () => {
-        if (imageData) {
-            sampleRandomPixels();
-        }
-    });
-    
     // Show/hide toggles
-    showCurves.addEventListener('change', updateGraphsWithPixels);
-    showPixels.addEventListener('change', updateGraphsWithPixels);
+    showCurves.addEventListener('change', updateGraphs);
+    showHistogram.addEventListener('change', updateGraphs);
     
     // Sample image buttons
     document.querySelectorAll('.sample-btn').forEach(btn => {
