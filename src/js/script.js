@@ -367,8 +367,11 @@ function initializeCombinedEOTFGraph() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            // Temporarily disable log scale for debugging
-            range: [0, Math.max(peakBrightness, 10000)]
+            range: [1, 10000],
+            type: 'log',
+            dtick: 1,
+            // Limit the number of grid lines for performance
+            nticks: 5
         },
         showlegend: true,
         legend: {
@@ -389,7 +392,7 @@ function initializeCombinedEOTFGraph() {
         displayModeBar: false
     };
     
-    const numPoints = 100; // Reduced for better performance
+    const numPoints = 50; // Further reduced for log scale performance with EOTF
     const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [
@@ -397,7 +400,7 @@ function initializeCombinedEOTFGraph() {
             x: encodedValues,
             y: encodedValues.map(v => {
                 const brightness = TransferFunctions.sRGB.decode(v) * peakBrightness;
-                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
             }),
             type: 'scatter',
             mode: 'lines',
@@ -409,7 +412,7 @@ function initializeCombinedEOTFGraph() {
             x: encodedValues,
             y: encodedValues.map(v => {
                 const brightness = TransferFunctions.PQ.decode(v) * 10000;
-                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
             }),
             type: 'scatter',
             mode: 'lines',
@@ -421,7 +424,7 @@ function initializeCombinedEOTFGraph() {
             x: encodedValues,
             y: encodedValues.map(v => {
                 const brightness = Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness;
-                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
             }),
             type: 'scatter',
             mode: 'lines',
