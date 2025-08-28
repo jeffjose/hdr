@@ -545,6 +545,143 @@ function calculateHistogram(imageData) {
 
 // Update graphs
 function updateGraphs() {
+    if (transferMode === 'eotf') {
+        updateEOTFGraphs();
+    } else {
+        updateOETFGraphs();
+    }
+}
+
+function updateEOTFGraphs() {
+    const showCurves = document.getElementById('showCurves').checked;
+    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
+    
+    const numPoints = 256;
+    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
+    // Common layout settings
+    const darkLayout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 30, r: 30, b: 50, l: 70 },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        }
+    };
+    
+    // sRGB EOTF
+    const srgbTraces = [];
+    if (showCurves) {
+        srgbTraces.push({
+            x: encodedValues,
+            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'sRGB',
+            line: { color: '#00bcd4', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        });
+    }
+    
+    const srgbLayout = {
+        ...darkLayout,
+        title: 'sRGB EOTF',
+        xaxis: {
+            title: 'Encoded Signal Input',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, peakBrightness]
+        }
+    };
+    Plotly.react('srgbGraph', srgbTraces, srgbLayout);
+    
+    // PQ EOTF
+    const pqTraces = [];
+    if (showCurves) {
+        pqTraces.push({
+            x: encodedValues,
+            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'PQ',
+            line: { color: '#ff9800', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        });
+    }
+    
+    const pqLayout = {
+        ...darkLayout,
+        title: 'PQ EOTF (ST.2084)',
+        xaxis: {
+            title: 'Encoded Signal Input',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0.1, 10000],
+            type: 'log'
+        }
+    };
+    Plotly.react('pqGraph', pqTraces, pqLayout);
+    
+    // HLG EOTF
+    const hlgTraces = [];
+    if (showCurves) {
+        hlgTraces.push({
+            x: encodedValues,
+            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'HLG',
+            line: { color: '#9c27b0', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        });
+    }
+    
+    const hlgLayout = {
+        ...darkLayout,
+        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
+        xaxis: {
+            title: 'Encoded Signal Input',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, peakBrightness * 1.1]
+        }
+    };
+    Plotly.react('hlgGraph', hlgTraces, hlgLayout);
+    
+    // Update combined graph if needed
+    if (viewMode === 'combined') {
+        updateCombinedGraph();
+    }
+}
+
+function updateOETFGraphs() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
@@ -823,6 +960,91 @@ function updateCombinedGraphHighlight(pixel) {
 
 // Update combined graph
 function updateCombinedGraph() {
+    if (transferMode === 'eotf') {
+        updateCombinedEOTFGraph();
+    } else {
+        updateCombinedOETFGraph();
+    }
+}
+
+function updateCombinedEOTFGraph() {
+    const showCurves = document.getElementById('showCurves').checked;
+    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
+    
+    const numPoints = 256;
+    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
+    const traces = [];
+    
+    if (showCurves) {
+        traces.push(
+            {
+                x: encodedValues,
+                y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+                type: 'scatter',
+                mode: 'lines',
+                name: `sRGB (${peakBrightness} nits)`,
+                line: { color: '#00bcd4', width: 2 },
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            },
+            {
+                x: encodedValues,
+                y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'PQ (10000 nits)',
+                line: { color: '#ff9800', width: 2 },
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            },
+            {
+                x: encodedValues,
+                y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+                type: 'scatter',
+                mode: 'lines',
+                name: `HLG (${peakBrightness} nits)`,
+                line: { color: '#9c27b0', width: 2 },
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            }
+        );
+    }
+    
+    const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 40, r: 30, b: 50, l: 70 },
+        xaxis: {
+            title: 'Encoded Signal Input (0=black, 1=max code)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1],
+            dtick: 0.2
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0.1, Math.max(peakBrightness * 1.5, 10000)],
+            type: 'log'
+        },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        title: 'EOTF Comparison',
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        }
+    };
+    
+    Plotly.react('combinedGraph', traces, layout);
+}
+
+function updateCombinedOETFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
