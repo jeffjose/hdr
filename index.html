@@ -252,6 +252,16 @@
                 <p>📁 Drop an image here or click to upload</p>
                 <input type="file" id="fileInput" accept="image/*">
             </div>
+            
+            <div class="url-input-section" style="margin-top: 15px;">
+                <div style="display: flex; gap: 8px;">
+                    <input type="url" id="urlInput" placeholder="Or paste image URL here..." 
+                        style="flex: 1; background: #252525; border: 1px solid #444; color: #e0e0e0; 
+                               padding: 8px 12px; border-radius: 4px; font-size: 14px;">
+                    <button id="loadUrlBtn" style="padding: 8px 16px;">Load URL</button>
+                </div>
+                <div id="urlError" style="color: #ff6b6b; font-size: 12px; margin-top: 5px; display: none;"></div>
+            </div>
             <div class="info" id="imageInfo">
                 No image loaded
             </div>
@@ -286,6 +296,7 @@
     
     <canvas id="canvas"></canvas>
     <div class="hover-indicator" id="hoverIndicator"></div>
+    <script src="histogram-enhancement.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

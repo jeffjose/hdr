@@ -142,7 +142,7 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
-        line: { color: '#4a9eff', width: 2 },
+        line: { color: '#00bcd4', width: 2 },
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], srgbLayout, config);
     
@@ -155,7 +155,7 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
-        line: { color: '#ff6b6b', width: 2 },
+        line: { color: '#ff9800', width: 2 },
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], pqLayout, config);
     
@@ -168,7 +168,7 @@ function initializeGraphs() {
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
-        line: { color: '#51cf66', width: 2 },
+        line: { color: '#9c27b0', width: 2 },
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
     
@@ -224,7 +224,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
-            line: { color: '#4a9eff', width: 2 },
+            line: { color: '#00bcd4', width: 2 },
             hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         },
         {
@@ -233,7 +233,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
-            line: { color: '#ff6b6b', width: 2 },
+            line: { color: '#ff9800', width: 2 },
             hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         },
         {
@@ -242,7 +242,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
-            line: { color: '#51cf66', width: 2 },
+            line: { color: '#9c27b0', width: 2 },
             hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         }
     ];
@@ -317,32 +317,8 @@ function updateGraphs() {
     
     // Add histogram if available and enabled
     if (showHistogram && histogram) {
-        const histX = [];
-        const histY = [];
-        for (let i = 0; i < histogram.bins; i++) {
-            const x = (i + 0.5) * histogram.binWidth;
-            histX.push(x);
-            // Scale histogram to fit nicely in the graph (max height = 0.3)
-            const maxHistValue = Math.max(...histogram.luminance);
-            histY.push((histogram.luminance[i] / maxHistValue) * 0.3);
-        }
-        
-        srgbTraces.push({
-            x: histX,
-            y: histY,
-            type: 'bar',
-            name: 'Luminance Distribution',
-            marker: { 
-                color: 'rgba(255, 255, 255, 0.2)',
-                line: {
-                    color: 'rgba(255, 255, 255, 0.3)',
-                    width: 0.5
-                }
-            },
-            width: histogram.binWidth,
-            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
-            showlegend: false
-        });
+        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]);
+        if (histTrace) srgbTraces.push(histTrace);
     }
     
     if (showCurves) {
@@ -352,7 +328,7 @@ function updateGraphs() {
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
-            line: { color: '#4a9eff', width: 2 },
+            line: { color: '#00bcd4', width: 2 },
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
@@ -395,33 +371,9 @@ function updateGraphs() {
     
     // Add histogram for PQ
     if (showHistogram && histogram) {
-        const histX = [];
-        const histY = [];
-        for (let i = 0; i < histogram.bins; i++) {
-            const x = (i + 0.5) * histogram.binWidth;
-            histX.push(x);
-            const maxHistValue = Math.max(...histogram.luminance);
-            // Transform histogram through PQ function for better alignment
-            const pqValue = TransferFunctions.PQ.encode(x);
-            histY.push((histogram.luminance[i] / maxHistValue) * pqValue * 0.3);
-        }
-        
-        pqTraces.push({
-            x: histX,
-            y: histY,
-            type: 'bar',
-            name: 'Luminance Distribution',
-            marker: { 
-                color: 'rgba(255, 255, 255, 0.2)',
-                line: {
-                    color: 'rgba(255, 255, 255, 0.3)',
-                    width: 0.5
-                }
-            },
-            width: histogram.binWidth,
-            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
-            showlegend: false
-        });
+        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0], 
+            (x) => TransferFunctions.PQ.encode(x));
+        if (histTrace) pqTraces.push(histTrace);
     }
     
     if (showCurves) {
@@ -431,7 +383,7 @@ function updateGraphs() {
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
-            line: { color: '#ff6b6b', width: 2 },
+            line: { color: '#ff9800', width: 2 },
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
@@ -444,33 +396,9 @@ function updateGraphs() {
     
     // Add histogram for HLG
     if (showHistogram && histogram) {
-        const histX = [];
-        const histY = [];
-        for (let i = 0; i < histogram.bins; i++) {
-            const x = (i + 0.5) * histogram.binWidth;
-            histX.push(x);
-            const maxHistValue = Math.max(...histogram.luminance);
-            // Transform histogram through HLG function for better alignment
-            const hlgValue = TransferFunctions.HLG.encode(x);
-            histY.push((histogram.luminance[i] / maxHistValue) * hlgValue * 0.3);
-        }
-        
-        hlgTraces.push({
-            x: histX,
-            y: histY,
-            type: 'bar',
-            name: 'Luminance Distribution',
-            marker: { 
-                color: 'rgba(255, 255, 255, 0.2)',
-                line: {
-                    color: 'rgba(255, 255, 255, 0.3)',
-                    width: 0.5
-                }
-            },
-            width: histogram.binWidth,
-            hovertemplate: 'Bin: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
-            showlegend: false
-        });
+        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176], 
+            (x) => TransferFunctions.HLG.encode(x));
+        if (histTrace) hlgTraces.push(histTrace);
     }
     
     if (showCurves) {
@@ -480,7 +408,7 @@ function updateGraphs() {
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
-            line: { color: '#51cf66', width: 2 },
+            line: { color: '#9c27b0', width: 2 },
             hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
@@ -642,36 +570,18 @@ function updateCombinedGraph() {
     
     // Add histogram if enabled
     if (showHistogram && histogram) {
-        const histX = [];
-        const histY = [];
-        for (let i = 0; i < histogram.bins; i++) {
-            const x = (i + 0.5) * histogram.binWidth;
-            histX.push(x);
-            // Use average of all transfer functions for combined view
-            const srgbValue = TransferFunctions.sRGB.encode(x);
-            const pqValue = TransferFunctions.PQ.encode(x);
-            const hlgValue = TransferFunctions.HLG.encode(x);
-            const avgValue = (srgbValue + pqValue + hlgValue) / 3;
-            const maxHistValue = Math.max(...histogram.luminance);
-            histY.push((histogram.luminance[i] / maxHistValue) * avgValue * 0.25);
+        const histTrace = createHistogramTrace(histogram, 0.25, [255, 255, 255], 
+            (x) => {
+                // Use average of all transfer functions for combined view
+                const srgbValue = TransferFunctions.sRGB.encode(x);
+                const pqValue = TransferFunctions.PQ.encode(x);
+                const hlgValue = TransferFunctions.HLG.encode(x);
+                return (srgbValue + pqValue + hlgValue) / 3;
+            });
+        if (histTrace) {
+            histTrace.showlegend = true;
+            traces.push(histTrace);
         }
-        
-        traces.push({
-            x: histX,
-            y: histY,
-            type: 'bar',
-            name: 'Luminance Distribution',
-            marker: { 
-                color: 'rgba(255, 255, 255, 0.15)',
-                line: {
-                    color: 'rgba(255, 255, 255, 0.2)',
-                    width: 0.5
-                }
-            },
-            width: histogram.binWidth,
-            hovertemplate: 'Luminance<br>Value: %{x:.3f}<br>Frequency: %{y:.1%}<extra></extra>',
-            showlegend: true
-        });
     }
     
     if (showCurves) {
@@ -682,7 +592,7 @@ function updateCombinedGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB',
-                line: { color: '#4a9eff', width: 2 },
+                line: { color: '#00bcd4', width: 2 },
                 hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             },
             {
@@ -691,7 +601,7 @@ function updateCombinedGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ',
-                line: { color: '#ff6b6b', width: 2 },
+                line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             },
             {
@@ -700,7 +610,7 @@ function updateCombinedGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'HLG',
-                line: { color: '#51cf66', width: 2 },
+                line: { color: '#9c27b0', width: 2 },
                 hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             }
         );
@@ -982,6 +892,11 @@ document.addEventListener('DOMContentLoaded', function() {
     ctx = canvas.getContext('2d');
     
     initializeGraphs();
+    
+    // Add histogram visualization controls
+    if (typeof addHistogramControls === 'function') {
+        addHistogramControls();
+    }
     
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
