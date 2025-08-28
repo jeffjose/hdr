@@ -354,12 +354,23 @@ button:disabled {
 label {
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 11px;
+    color: #999;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+label:hover {
+    color: #ccc;
 }
 
 input[type="checkbox"] {
     cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: #4a9eff;
 }
 
 canvas {
