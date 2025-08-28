@@ -1030,34 +1030,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     });
     
-    // Scale toggle buttons (for histogram)
-    const linearScale = document.getElementById('linearScale');
-    const logScale = document.getElementById('logScale');
-    
-    linearScale.addEventListener('click', () => {
-        if (typeof histogramScale !== 'undefined') {
-            histogramScale = 'linear';
-        }
-        linearScale.classList.add('active');
-        logScale.classList.remove('active');
-        if (histogram) updateGraphs();
-    });
-    
-    logScale.addEventListener('click', () => {
-        if (typeof histogramScale !== 'undefined') {
-            histogramScale = 'log';
-        }
-        logScale.classList.add('active');
-        linearScale.classList.remove('active');
-        if (histogram) updateGraphs();
-    });
-    
     // Initialize with combined view
     if (viewMode === 'combined') {
         combinedView.classList.add('active');
         separateView.classList.remove('active');
         graphsContainer.classList.add('combined-view');
         combinedGraph.classList.add('active');
+        // Ensure combined graph resizes properly on initial load
+        setTimeout(() => {
+            Plotly.Plots.resize('combinedGraph');
+        }, 100);
     }
     
     // Image hover interaction - optimized for performance
