@@ -367,11 +367,8 @@ function initializeCombinedEOTFGraph() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [1, 10000],
-            type: 'log',
-            dtick: 1,
-            // Limit the number of grid lines for performance
-            nticks: 5
+            range: [0, 2000]  // Use linear scale with reasonable range
+            // Log scale causing severe performance issues with Plotly
         },
         showlegend: true,
         legend: {
@@ -398,10 +395,7 @@ function initializeCombinedEOTFGraph() {
     const traces = [
         {
             x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = TransferFunctions.sRGB.decode(v) * peakBrightness;
-                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
-            }),
+            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
             type: 'scatter',
             mode: 'lines',
             name: `sRGB (${peakBrightness} nits)`,
@@ -410,10 +404,7 @@ function initializeCombinedEOTFGraph() {
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = TransferFunctions.PQ.decode(v) * 10000;
-                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
-            }),
+            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (10000 nits)',
@@ -422,10 +413,7 @@ function initializeCombinedEOTFGraph() {
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness;
-                return Math.max(1, brightness); // Use 1 as minimum for better log scale performance
-            }),
+            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
             type: 'scatter',
             mode: 'lines',
             name: `HLG (${peakBrightness} nits)`,
