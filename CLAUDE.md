@@ -3,35 +3,38 @@
 ## Overview
 This is an advanced HDR (High Dynamic Range) image analysis tool that provides real-time visualization of various HDR transfer functions and color analysis capabilities. The application is designed for professionals working with HDR content, color grading, and display calibration.
 
-## Quick Start
+## Project Structure
 
-### Prerequisites
-- Node.js v18+ 
-- pnpm package manager
-
-### Development Setup
-```bash
-# Install dependencies
-pnpm install
-
-# Run development server
-pnpm run dev
-
-# Build for production
-pnpm run build
-
-# Preview production build
-pnpm run preview
+```
+hdr/
+├── src/
+│   ├── js/
+│   │   ├── script.js              # Main application logic
+│   │   ├── histogram-enhancement.js # Enhanced histogram visualizations
+│   │   ├── sample-generators.js    # Test pattern and sample generators
+│   │   └── url-loader.js          # URL image loading with CORS handling
+│   └── css/
+│       └── styles.css              # Main stylesheet
+├── index.html                      # Application entry point
+├── CLAUDE.md                       # Project documentation
+└── .gitignore                      # Git ignore configuration
 ```
 
-The development server runs on `http://localhost:5173` with hot module replacement enabled.
+## Quick Start
+
+Simply open `index.html` in a modern web browser. No build process or server required - the application runs entirely client-side.
 
 ## Current Features
+
+### Image Input Methods
+- **Sample Gallery**: 15+ built-in test patterns and sample scenes
+- **File Upload**: Drag-and-drop or click to browse local files
+- **URL Loading**: Load images directly from web URLs with CORS support
 
 ### Image Analysis
 - **Multi-format Support**: Upload and analyze images in various formats (PNG, JPG, JPEG, AVIF, HEIC, HEIF)
 - **Real-time Pixel Analysis**: Hover over images to see instant pixel values in both sRGB and linear color spaces
-- **Histogram Calculation**: Automatic luminance distribution analysis with 100-bin precision
+- **Enhanced Histogram**: Multiple visualization modes (area, line, bars, curve, step) with logarithmic scaling for skewed data
 
 ### Transfer Function Visualization
 - **sRGB Transfer Function**: Standard gamma 2.2 encoding/decoding with proper linearization
@@ -42,12 +45,14 @@ The development server runs on `http://localhost:5173` with hot module replaceme
 - **Dual View Modes**: 
   - Separate graphs for each transfer function
   - Combined view for comparative analysis
+- **Scale Options**: Linear and logarithmic scaling for better data visualization
 - **Dynamic Overlays**: Real-time pixel highlighting on curves
 - **Histogram Integration**: Luminance distribution overlay on transfer curves
 
-### Test Patterns
-- **Synthetic Patterns**: Pure colors (R/G/B), gradients, color bars
-- **Sample Images**: Landscape, sunset, neon effects for testing
+### UI/UX Features
+- **Compact Header**: Space-efficient horizontal layout with logo branding
+- **Responsive Design**: Dark theme optimized for HDR content viewing
+- **Real-time Updates**: 60fps hover tracking with throttled graph updates
 
 ## Architecture
 
