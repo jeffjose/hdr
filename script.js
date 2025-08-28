@@ -87,6 +87,8 @@ let ctx = null;
 let currentHoverPixel = null;
 let viewMode = 'separate'; // 'separate' or 'combined'
 let histogram = null; // Store histogram data
+let updateGraphTimeout = null; // For debouncing graph updates
+let lastUpdateTime = 0; // For throttling
 
 // Initialize graphs
 function initializeGraphs() {
@@ -492,9 +494,15 @@ function updateGraphs() {
     }
 }
 
-// Highlight pixel on graphs
+// Highlight pixel on graphs - optimized version
 function highlightPixelOnGraphs(pixel) {
     currentHoverPixel = pixel;
+    
+    // Skip if in combined view - update only combined graph
+    if (viewMode === 'combined') {
+        updateCombinedGraphHighlight(pixel);
+        return;
+    }
     
     // Update individual graphs with highlight
     const graphIds = ['srgbGraph', 'pqGraph', 'hlgGraph'];
@@ -504,54 +512,121 @@ function highlightPixelOnGraphs(pixel) {
         const graphDiv = document.getElementById(graphId);
         if (!graphDiv || !graphDiv.data) return;
         
-        const currentData = [...graphDiv.data];
-        
-        // Remove any existing hover traces
-        const filteredData = currentData.filter(trace => !trace.name || !trace.name.includes('Hover'));
+        // Use Plotly.restyle for better performance - just update the hover traces
+        const baseTraceCount = graphDiv.data.filter(trace => !trace.name || !trace.name.includes('Hover')).length;
         
         if (pixel) {
-            // Add hover highlight traces
-            const hoverTraces = [
-                {
-                    x: [pixel.linear.r],
-                    y: [functions[idx].encode(pixel.linear.r)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: 'Hover R',
-                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 } },
-                    hovertemplate: 'Hover R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                    showlegend: false
-                },
-                {
-                    x: [pixel.linear.g],
-                    y: [functions[idx].encode(pixel.linear.g)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: 'Hover G',
-                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 } },
-                    hovertemplate: 'Hover G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                    showlegend: false
-                },
-                {
-                    x: [pixel.linear.b],
-                    y: [functions[idx].encode(pixel.linear.b)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: 'Hover B',
-                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 } },
-                    hovertemplate: 'Hover B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                    showlegend: false
+            const rData = [pixel.linear.r];
+            const gData = [pixel.linear.g];
+            const bData = [pixel.linear.b];
+            const rY = [functions[idx].encode(pixel.linear.r)];
+            const gY = [functions[idx].encode(pixel.linear.g)];
+            const bY = [functions[idx].encode(pixel.linear.b)];
+            
+            // Check if we need to add or update traces
+            if (graphDiv.data.length === baseTraceCount) {
+                // Add new hover traces
+                const hoverTraces = [
+                    {
+                        x: rData,
+                        y: rY,
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: 'Hover R',
+                        marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 } },
+                        hovertemplate: 'Hover R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                        showlegend: false
+                    },
+                    {
+                        x: gData,
+                        y: gY,
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: 'Hover G',
+                        marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 } },
+                        hovertemplate: 'Hover G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                        showlegend: false
+                    },
+                    {
+                        x: bData,
+                        y: bY,
+                        type: 'scatter',
+                        mode: 'markers',
+                        name: 'Hover B',
+                        marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 } },
+                        hovertemplate: 'Hover B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                        showlegend: false
+                    }
+                ];
+                Plotly.addTraces(graphId, hoverTraces);
+            } else {
+                // Update existing hover traces using restyle (much faster)
+                Plotly.restyle(graphId, {
+                    x: [rData, gData, bData],
+                    y: [rY, gY, bY]
+                }, [baseTraceCount, baseTraceCount + 1, baseTraceCount + 2]);
+            }
+        } else {
+            // Remove hover traces if they exist
+            if (graphDiv.data.length > baseTraceCount) {
+                const indicesToRemove = [];
+                for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+                    indicesToRemove.push(i);
                 }
-            ];
-            filteredData.push(...hoverTraces);
+                Plotly.deleteTraces(graphId, indicesToRemove);
+            }
         }
-        
-        Plotly.react(graphId, filteredData, graphDiv.layout);
     });
+}
+
+// Optimized combined graph highlight update
+function updateCombinedGraphHighlight(pixel) {
+    const graphDiv = document.getElementById('combinedGraph');
+    if (!graphDiv || !graphDiv.data) return;
     
-    // Update combined graph if active
-    if (viewMode === 'combined') {
-        updateCombinedGraph();
+    const baseTraceCount = graphDiv.data.filter(trace => !trace.name || !trace.name.includes('Hover')).length;
+    
+    if (pixel) {
+        const updates = {
+            x: [],
+            y: []
+        };
+        
+        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
+            const func = type === 'sRGB' ? TransferFunctions.sRGB :
+                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
+            
+            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+            updates.y.push(
+                [func.encode(pixel.linear.r)],
+                [func.encode(pixel.linear.g)],
+                [func.encode(pixel.linear.b)]
+            );
+        });
+        
+        if (graphDiv.data.length === baseTraceCount) {
+            // Need to add traces - do full update
+            updateCombinedGraph();
+        } else {
+            // Just update positions using restyle
+            const indices = [];
+            for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+                indices.push(i);
+            }
+            Plotly.restyle('combinedGraph', {
+                x: updates.x,
+                y: updates.y
+            }, indices);
+        }
+    } else {
+        // Remove hover traces
+        if (graphDiv.data.length > baseTraceCount) {
+            const indicesToRemove = [];
+            for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+                indicesToRemove.push(i);
+            }
+            Plotly.deleteTraces('combinedGraph', indicesToRemove);
+        }
     }
 }
 
@@ -990,9 +1065,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     });
     
-    // Image hover interaction
+    // Image hover interaction - optimized for performance
     uploadedImage.addEventListener('mousemove', function(e) {
         if (!imageData) return;
+        
+        // IMMEDIATE: Update hover indicator position (P0 - instant response)
+        hoverIndicator.style.display = 'block';
+        hoverIndicator.style.left = e.clientX + 'px';
+        hoverIndicator.style.top = e.clientY + 'px';
         
         // Get image position and dimensions
         const rect = this.getBoundingClientRect();
@@ -1005,11 +1085,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Ensure within bounds
         if (x >= 0 && x < imageData.width && y >= 0 && y < imageData.height) {
-            // Show hover indicator
-            hoverIndicator.style.display = 'block';
-            hoverIndicator.style.left = e.clientX + 'px';
-            hoverIndicator.style.top = e.clientY + 'px';
-            
             // Get pixel data
             const idx = (y * imageData.width + x) * 4;
             const srgb = {
@@ -1026,7 +1101,19 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             const pixel = { x, y, srgb, linear };
-            highlightPixelOnGraphs(pixel);
+            
+            // THROTTLED: Update graphs (P1 - fast but not instant)
+            // Use requestAnimationFrame for smooth updates
+            const now = Date.now();
+            if (now - lastUpdateTime > 16) { // ~60fps throttle
+                lastUpdateTime = now;
+                requestAnimationFrame(() => {
+                    highlightPixelOnGraphs(pixel);
+                });
+            }
+        } else {
+            // Hide indicator if out of bounds
+            hoverIndicator.style.display = 'none';
         }
     });
     
