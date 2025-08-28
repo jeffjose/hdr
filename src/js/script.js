@@ -349,6 +349,8 @@ function initializeSeparateOETFGraphs() {
 
 // Initialize combined EOTF graph
 function initializeCombinedEOTFGraph() {
+    console.log('[DEBUG] initializeCombinedEOTFGraph called');
+    console.time('initializeCombinedEOTFGraph');
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -429,8 +431,11 @@ function initializeCombinedEOTFGraph() {
             hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
         }
     ];
-    
+    console.log('[DEBUG] Built traces, about to call Plotly.newPlot');
+    console.time('Plotly.newPlot');
     Plotly.newPlot('combinedGraph', traces, layout, config);
+    console.timeEnd('Plotly.newPlot');
+    console.timeEnd('initializeCombinedEOTFGraph');
 }
 
 // Initialize combined OETF graph
