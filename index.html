@@ -101,6 +101,53 @@
             align-items: center;
         }
         
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+        
+        .view-toggle button {
+            padding: 6px 12px;
+            background: #333;
+            border: 1px solid #444;
+            font-size: 13px;
+        }
+        
+        .view-toggle button.active {
+            background: #4a9eff;
+            border-color: #4a9eff;
+        }
+        
+        .combined-graph {
+            flex: 1;
+            background: #0a0a0a;
+            border-radius: 8px;
+            min-height: 0;
+            display: none;
+        }
+        
+        .combined-graph.active {
+            display: block;
+        }
+        
+        .graphs-container.combined-view .graph {
+            display: none;
+        }
+        
+        .hover-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4a9eff;
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+        }
+        
         .info {
             padding: 10px;
             background: #252525;
@@ -222,16 +269,22 @@
                     <input type="checkbox" id="showPixels" checked>
                     Show Pixel Samples
                 </label>
+                <div class="view-toggle">
+                    <button id="separateView" class="active">Separate</button>
+                    <button id="combinedView">Combined</button>
+                </div>
             </div>
-            <div class="graphs-container">
+            <div class="graphs-container" id="graphsContainer">
                 <div class="graph" id="srgbGraph"></div>
                 <div class="graph" id="pqGraph"></div>
                 <div class="graph" id="hlgGraph"></div>
+                <div class="combined-graph" id="combinedGraph"></div>
             </div>
         </div>
     </div>
     
     <canvas id="canvas"></canvas>
+    <div class="hover-indicator" id="hoverIndicator"></div>
     <script src="script.js"></script>
 </body>
 </html>

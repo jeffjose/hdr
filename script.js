@@ -85,6 +85,8 @@ let imageData = null;
 let pixelSamples = [];
 let canvas = null;
 let ctx = null;
+let currentHoverPixel = null;
+let viewMode = 'separate'; // 'separate' or 'combined'
 
 // Initialize graphs
 function initializeGraphs() {
@@ -183,7 +185,8 @@ function updateGraphsWithPixels() {
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
-            line: { color: '#4a9eff', width: 2 }
+            line: { color: '#4a9eff', width: 2 },
+            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
     if (showPixels) {
@@ -194,7 +197,8 @@ function updateGraphsWithPixels() {
                 type: 'scatter',
                 mode: 'markers',
                 name: 'R pixels',
-                marker: { color: '#ff4444', size: 6, opacity: 0.7 }
+                marker: { color: '#ff4444', size: 6, opacity: 0.7 },
+                hovertemplate: 'R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             },
             {
                 x: pixelLinearG,
@@ -202,7 +206,8 @@ function updateGraphsWithPixels() {
                 type: 'scatter',
                 mode: 'markers',
                 name: 'G pixels',
-                marker: { color: '#44ff44', size: 6, opacity: 0.7 }
+                marker: { color: '#44ff44', size: 6, opacity: 0.7 },
+                hovertemplate: 'G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             },
             {
                 x: pixelLinearB,
@@ -210,7 +215,8 @@ function updateGraphsWithPixels() {
                 type: 'scatter',
                 mode: 'markers',
                 name: 'B pixels',
-                marker: { color: '#4444ff', size: 6, opacity: 0.7 }
+                marker: { color: '#4444ff', size: 6, opacity: 0.7 },
+                hovertemplate: 'B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
             }
         );
     }
@@ -251,7 +257,8 @@ function updateGraphsWithPixels() {
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
-            line: { color: '#ff6b6b', width: 2 }
+            line: { color: '#ff6b6b', width: 2 },
+            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
     if (showPixels) {
@@ -294,7 +301,8 @@ function updateGraphsWithPixels() {
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
-            line: { color: '#51cf66', width: 2 }
+            line: { color: '#51cf66', width: 2 },
+            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
         });
     }
     if (showPixels) {
@@ -327,6 +335,240 @@ function updateGraphsWithPixels() {
     }
     const hlgLayout = {...darkLayout, title: 'HLG (BT.2100) Transfer Function'};
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
+    
+    // Update combined graph if needed
+    if (viewMode === 'combined') {
+        updateCombinedGraph();
+    }
+}
+
+// Highlight pixel on graphs
+function highlightPixelOnGraphs(pixel) {
+    currentHoverPixel = pixel;
+    
+    // Update individual graphs with highlight
+    const graphIds = ['srgbGraph', 'pqGraph', 'hlgGraph'];
+    const functions = [TransferFunctions.sRGB, TransferFunctions.PQ, TransferFunctions.HLG];
+    
+    graphIds.forEach((graphId, idx) => {
+        const graphDiv = document.getElementById(graphId);
+        if (!graphDiv || !graphDiv.data) return;
+        
+        const currentData = [...graphDiv.data];
+        
+        // Remove any existing hover traces
+        const filteredData = currentData.filter(trace => !trace.name || !trace.name.includes('Hover'));
+        
+        if (pixel) {
+            // Add hover highlight traces
+            const hoverTraces = [
+                {
+                    x: [pixel.linear.r],
+                    y: [functions[idx].encode(pixel.linear.r)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Hover R',
+                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 } },
+                    hovertemplate: 'Hover R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                    showlegend: false
+                },
+                {
+                    x: [pixel.linear.g],
+                    y: [functions[idx].encode(pixel.linear.g)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Hover G',
+                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 } },
+                    hovertemplate: 'Hover G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                    showlegend: false
+                },
+                {
+                    x: [pixel.linear.b],
+                    y: [functions[idx].encode(pixel.linear.b)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: 'Hover B',
+                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 } },
+                    hovertemplate: 'Hover B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
+                    showlegend: false
+                }
+            ];
+            filteredData.push(...hoverTraces);
+        }
+        
+        Plotly.react(graphId, filteredData, graphDiv.layout);
+    });
+    
+    // Update combined graph if active
+    if (viewMode === 'combined') {
+        updateCombinedGraph();
+    }
+}
+
+// Update combined graph
+function updateCombinedGraph() {
+    const showCurves = document.getElementById('showCurves').checked;
+    const showPixels = document.getElementById('showPixels').checked;
+    
+    const numPoints = 256;
+    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
+    const traces = [];
+    
+    if (showCurves) {
+        traces.push(
+            {
+                x: linearValues,
+                y: linearValues.map(v => TransferFunctions.sRGB.encode(v)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'sRGB',
+                line: { color: '#4a9eff', width: 2 },
+                hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            },
+            {
+                x: linearValues,
+                y: linearValues.map(v => TransferFunctions.PQ.encode(v)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'PQ',
+                line: { color: '#ff6b6b', width: 2 },
+                hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            },
+            {
+                x: linearValues,
+                y: linearValues.map(v => TransferFunctions.HLG.encode(v)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'HLG',
+                line: { color: '#51cf66', width: 2 },
+                hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            }
+        );
+    }
+    
+    if (showPixels && pixelSamples.length) {
+        const pixelLinearR = pixelSamples.map(p => p.linear.r);
+        const pixelLinearG = pixelSamples.map(p => p.linear.g);
+        const pixelLinearB = pixelSamples.map(p => p.linear.b);
+        
+        // Add pixel samples for each curve
+        ['sRGB', 'PQ', 'HLG'].forEach((type, idx) => {
+            const func = type === 'sRGB' ? TransferFunctions.sRGB :
+                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
+            const symbol = type === 'sRGB' ? 'circle' :
+                          type === 'PQ' ? 'square' : 'diamond';
+            
+            traces.push(
+                {
+                    x: pixelLinearR,
+                    y: pixelLinearR.map(v => func.encode(v)),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `${type} R`,
+                    marker: { color: '#ff4444', size: 5, opacity: 0.7, symbol },
+                    hovertemplate: `${type} R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    legendgroup: type
+                },
+                {
+                    x: pixelLinearG,
+                    y: pixelLinearG.map(v => func.encode(v)),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `${type} G`,
+                    marker: { color: '#44ff44', size: 5, opacity: 0.7, symbol },
+                    hovertemplate: `${type} G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    legendgroup: type
+                },
+                {
+                    x: pixelLinearB,
+                    y: pixelLinearB.map(v => func.encode(v)),
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `${type} B`,
+                    marker: { color: '#4444ff', size: 5, opacity: 0.7, symbol },
+                    hovertemplate: `${type} B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    legendgroup: type
+                }
+            );
+        });
+    }
+    
+    // Add hover pixel if exists
+    if (currentHoverPixel) {
+        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
+            const func = type === 'sRGB' ? TransferFunctions.sRGB :
+                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
+            const symbol = type === 'sRGB' ? 'circle' :
+                          type === 'PQ' ? 'square' : 'diamond';
+            
+            traces.push(
+                {
+                    x: [currentHoverPixel.linear.r],
+                    y: [func.encode(currentHoverPixel.linear.r)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} R`,
+                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    showlegend: false
+                },
+                {
+                    x: [currentHoverPixel.linear.g],
+                    y: [func.encode(currentHoverPixel.linear.g)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} G`,
+                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    showlegend: false
+                },
+                {
+                    x: [currentHoverPixel.linear.b],
+                    y: [func.encode(currentHoverPixel.linear.b)],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} B`,
+                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>`,
+                    showlegend: false
+                }
+            );
+        });
+    }
+    
+    const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 40, r: 30, b: 40, l: 50 },
+        xaxis: {
+            title: 'Linear Input',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Encoded Output',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        },
+        title: 'All Transfer Functions'
+    };
+    
+    Plotly.react('combinedGraph', traces, layout);
 }
 
 // Sample random pixels from the image
@@ -567,6 +809,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const sampleButton = document.getElementById('sampleButton');
     const showCurves = document.getElementById('showCurves');
     const showPixels = document.getElementById('showPixels');
+    const uploadedImage = document.getElementById('uploadedImage');
+    const hoverIndicator = document.getElementById('hoverIndicator');
+    const separateView = document.getElementById('separateView');
+    const combinedView = document.getElementById('combinedView');
+    const graphsContainer = document.getElementById('graphsContainer');
+    const combinedGraph = document.getElementById('combinedGraph');
     
     // File upload click
     uploadArea.addEventListener('click', () => fileInput.click());
@@ -625,10 +873,79 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // View toggle buttons
+    separateView.addEventListener('click', () => {
+        viewMode = 'separate';
+        separateView.classList.add('active');
+        combinedView.classList.remove('active');
+        graphsContainer.classList.remove('combined-view');
+        combinedGraph.classList.remove('active');
+    });
+    
+    combinedView.addEventListener('click', () => {
+        viewMode = 'combined';
+        combinedView.classList.add('active');
+        separateView.classList.remove('active');
+        graphsContainer.classList.add('combined-view');
+        combinedGraph.classList.add('active');
+        updateCombinedGraph();
+        setTimeout(() => {
+            Plotly.Plots.resize('combinedGraph');
+        }, 100);
+    });
+    
+    // Image hover interaction
+    uploadedImage.addEventListener('mousemove', function(e) {
+        if (!imageData) return;
+        
+        // Get image position and dimensions
+        const rect = this.getBoundingClientRect();
+        const scaleX = this.naturalWidth / rect.width;
+        const scaleY = this.naturalHeight / rect.height;
+        
+        // Calculate pixel coordinates
+        const x = Math.floor((e.clientX - rect.left) * scaleX);
+        const y = Math.floor((e.clientY - rect.top) * scaleY);
+        
+        // Ensure within bounds
+        if (x >= 0 && x < imageData.width && y >= 0 && y < imageData.height) {
+            // Show hover indicator
+            hoverIndicator.style.display = 'block';
+            hoverIndicator.style.left = e.clientX + 'px';
+            hoverIndicator.style.top = e.clientY + 'px';
+            
+            // Get pixel data
+            const idx = (y * imageData.width + x) * 4;
+            const srgb = {
+                r: imageData.data[idx] / 255,
+                g: imageData.data[idx + 1] / 255,
+                b: imageData.data[idx + 2] / 255
+            };
+            
+            // Convert to linear
+            const linear = {
+                r: TransferFunctions.sRGB.decode(srgb.r),
+                g: TransferFunctions.sRGB.decode(srgb.g),
+                b: TransferFunctions.sRGB.decode(srgb.b)
+            };
+            
+            const pixel = { x, y, srgb, linear };
+            highlightPixelOnGraphs(pixel);
+        }
+    });
+    
+    uploadedImage.addEventListener('mouseleave', function() {
+        hoverIndicator.style.display = 'none';
+        highlightPixelOnGraphs(null);
+    });
+    
     // Window resize
     window.addEventListener('resize', () => {
         Plotly.Plots.resize('srgbGraph');
         Plotly.Plots.resize('pqGraph');
         Plotly.Plots.resize('hlgGraph');
+        if (viewMode === 'combined') {
+            Plotly.Plots.resize('combinedGraph');
+        }
     });
 });
