@@ -1517,7 +1517,10 @@ document.addEventListener('DOMContentLoaded', function() {
         combinedGraph.classList.add('active');
         updateCombinedGraph();
         setTimeout(() => {
-            Plotly.Plots.resize('combinedGraph');
+            const combinedGraphDiv = document.getElementById('combinedGraph');
+            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+                Plotly.Plots.resize('combinedGraph');
+            }
         }, 100);
     });
     
@@ -1550,7 +1553,10 @@ document.addEventListener('DOMContentLoaded', function() {
         combinedGraph.classList.add('active');
         // Ensure combined graph resizes properly on initial load
         setTimeout(() => {
-            Plotly.Plots.resize('combinedGraph');
+            const combinedGraphDiv = document.getElementById('combinedGraph');
+            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+                Plotly.Plots.resize('combinedGraph');
+            }
         }, 100);
     }
     
@@ -1613,11 +1619,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Window resize
     window.addEventListener('resize', () => {
-        Plotly.Plots.resize('srgbGraph');
-        Plotly.Plots.resize('pqGraph');
-        Plotly.Plots.resize('hlgGraph');
+        // Only resize graphs that are visible
         if (viewMode === 'combined') {
-            Plotly.Plots.resize('combinedGraph');
+            const combinedGraphDiv = document.getElementById('combinedGraph');
+            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+                Plotly.Plots.resize('combinedGraph');
+            }
+        } else {
+            ['srgbGraph', 'pqGraph', 'hlgGraph'].forEach(id => {
+                const graphDiv = document.getElementById(id);
+                if (graphDiv && graphDiv.offsetParent !== null) {
+                    Plotly.Plots.resize(id);
+                }
+            });
         }
     });
 });
