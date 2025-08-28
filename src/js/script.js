@@ -156,7 +156,7 @@ function initializeSeparateEOTFGraphs() {
     };
     
     // Generate transfer curves for EOTF
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB EOTF (gamma 2.2 approximation)
@@ -164,7 +164,7 @@ function initializeSeparateEOTFGraphs() {
     const srgbEOTF = encodedValues.map(v => {
         // sRGB EOTF: decode then scale to display peak
         const linear = TransferFunctions.sRGB.decode(v);
-        return linear * peakBrightness;
+        return Math.max(0.01, linear * peakBrightness); // Ensure minimum for log scale
     });
     Plotly.newPlot('srgbGraph', [{
         x: encodedValues,
@@ -190,7 +190,7 @@ function initializeSeparateEOTFGraphs() {
     const pqEOTF = encodedValues.map(v => {
         // PQ EOTF: decode gives normalized 0-1, scale to 10000 nits
         const normalized = TransferFunctions.PQ.decode(v);
-        return normalized * 10000; // PQ is absolute, always 10000 nits max
+        return Math.max(0.01, normalized * 10000); // Ensure minimum for log scale
     });
     Plotly.newPlot('pqGraph', [{
         x: encodedValues,
@@ -216,7 +216,7 @@ function initializeSeparateEOTFGraphs() {
         const scene = TransferFunctions.HLG.decode(v);
         // Apply system gamma (1.2 is typical)
         const display = Math.pow(scene, 1.2);
-        return display * peakBrightness;
+        return Math.max(0.01, display * peakBrightness); // Ensure minimum for log scale
     });
     Plotly.newPlot('hlgGraph', [{
         x: encodedValues,
@@ -278,7 +278,7 @@ function initializeSeparateOETFGraphs() {
     };
     
     // Generate transfer curves
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB graph (SDR only)
@@ -388,22 +388,28 @@ function initializeCombinedEOTFGraph() {
         displayModeBar: false
     };
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [
         {
             x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+            y: encodedValues.map(v => {
+                const brightness = TransferFunctions.sRGB.decode(v) * peakBrightness;
+                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
-            name: 'sRGB',
+            name: `sRGB (${peakBrightness} nits)`,
             line: { color: '#00bcd4', width: 2 },
             hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+            y: encodedValues.map(v => {
+                const brightness = TransferFunctions.PQ.decode(v) * 10000;
+                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (10000 nits)',
@@ -412,7 +418,10 @@ function initializeCombinedEOTFGraph() {
         },
         {
             x: encodedValues,
-            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+            y: encodedValues.map(v => {
+                const brightness = Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness;
+                return Math.max(0.01, brightness); // Ensure minimum value for log scale
+            }),
             type: 'scatter',
             mode: 'lines',
             name: `HLG (${peakBrightness} nits)`,
@@ -463,7 +472,7 @@ function initializeCombinedGraph() {
         displayModeBar: false
     };
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     // Use extended range for combined view to show HDR capabilities
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
     
@@ -568,7 +577,7 @@ function updateEOTFGraphs() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // Common layout settings
@@ -697,7 +706,7 @@ function updateOETFGraphs() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB
@@ -983,7 +992,7 @@ function updateCombinedEOTFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [];
@@ -1060,7 +1069,7 @@ function updateCombinedOETFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 256;
+    const numPoints = 100; // Reduced for better performance
     // Use extended range for combined view to show HDR capabilities
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
     
