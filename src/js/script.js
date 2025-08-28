@@ -367,9 +367,8 @@ function initializeCombinedEOTFGraph() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0.1, Math.max(peakBrightness, 1000)],
-            type: 'log',
-            dtick: 1
+            // Temporarily disable log scale for debugging
+            range: [0, Math.max(peakBrightness, 10000)]
         },
         showlegend: true,
         legend: {
@@ -432,6 +431,19 @@ function initializeCombinedEOTFGraph() {
         }
     ];
     console.log('[DEBUG] Built traces, about to call Plotly.newPlot');
+    console.log('[DEBUG] Y-axis range:', layout.yaxis.range);
+    console.log('[DEBUG] Y-axis type:', layout.yaxis.type);
+    console.log('[DEBUG] First 5 y-values for each trace:');
+    traces.forEach((trace, i) => {
+        console.log(`  Trace ${i} (${trace.name}):`, trace.y.slice(0, 5));
+    });
+    console.log('[DEBUG] Min/max y-values for each trace:');
+    traces.forEach((trace, i) => {
+        const min = Math.min(...trace.y);
+        const max = Math.max(...trace.y);
+        console.log(`  Trace ${i} (${trace.name}): min=${min}, max=${max}`);
+    });
+    
     console.time('Plotly.newPlot');
     Plotly.newPlot('combinedGraph', traces, layout, config);
     console.timeEnd('Plotly.newPlot');
