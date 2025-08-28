@@ -1523,7 +1523,6 @@ document.addEventListener('DOMContentLoaded', function() {
         transferMode = 'oetf';
         oetfMode.classList.add('active');
         eotfMode.classList.remove('active');
-        initializeGraphs();
         updateGraphs();
     });
     
@@ -1531,17 +1530,13 @@ document.addEventListener('DOMContentLoaded', function() {
         transferMode = 'eotf';
         eotfMode.classList.add('active');
         oetfMode.classList.remove('active');
-        initializeGraphs();
         updateGraphs();
     });
     
     // Peak brightness selector
     peakBrightnessSelect.addEventListener('change', function() {
         peakBrightness = parseInt(peakBrightnessSelect.value);
-        if (transferMode === 'eotf') {
-            initializeGraphs();
-            updateGraphs();
-        }
+        updateGraphs();
     });
     
     // Initialize with combined view
