@@ -349,8 +349,6 @@ function initializeSeparateOETFGraphs() {
 
 // Initialize combined EOTF graph
 function initializeCombinedEOTFGraph() {
-    console.log('[DEBUG] initializeCombinedEOTFGraph called');
-    console.time('initializeCombinedEOTFGraph');
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -421,24 +419,10 @@ function initializeCombinedEOTFGraph() {
             hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
         }
     ];
-    console.log('[DEBUG] Built traces, about to call Plotly.newPlot');
-    console.log('[DEBUG] Y-axis range:', layout.yaxis.range);
-    console.log('[DEBUG] Y-axis type:', layout.yaxis.type);
-    console.log('[DEBUG] First 5 y-values for each trace:');
-    traces.forEach((trace, i) => {
-        console.log(`  Trace ${i} (${trace.name}):`, trace.y.slice(0, 5));
-    });
-    console.log('[DEBUG] Min/max y-values for each trace:');
-    traces.forEach((trace, i) => {
-        const min = Math.min(...trace.y);
-        const max = Math.max(...trace.y);
-        console.log(`  Trace ${i} (${trace.name}): min=${min}, max=${max}`);
-    });
     
-    console.time('Plotly.newPlot');
+    console.time('Plotly.newPlot-EOTF');
     Plotly.newPlot('combinedGraph', traces, layout, config);
-    console.timeEnd('Plotly.newPlot');
-    console.timeEnd('initializeCombinedEOTFGraph');
+    console.timeEnd('Plotly.newPlot-EOTF');
 }
 
 // Initialize combined OETF graph
@@ -1568,17 +1552,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Transfer mode toggles (OETF vs EOTF)
     oetfMode.addEventListener('click', function() {
+        console.log('[DEBUG] OETF mode clicked');
         transferMode = 'oetf';
         oetfMode.classList.add('active');
         eotfMode.classList.remove('active');
-        updateGraphs();
+        // Re-initialize graphs when switching transfer modes
+        initializeGraphs();
     });
     
     eotfMode.addEventListener('click', function() {
+        console.log('[DEBUG] EOTF mode clicked');
         transferMode = 'eotf';
         eotfMode.classList.add('active');
         oetfMode.classList.remove('active');
-        updateGraphs();
+        // Re-initialize graphs when switching transfer modes
+        initializeGraphs();
     });
     
     // Peak brightness selector
