@@ -7,7 +7,7 @@
 		"start": "live-server",
 		"build": "echo 'No build required - static site'"
 	},
-	"packageManager": "pnpm@8.0.0",
+	"packageManager": "pnpm@9.15.2",
 	"devDependencies": {
 		"live-server": "^1.2.2"
 	},
