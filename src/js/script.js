@@ -92,12 +92,139 @@ let canvas = null;
 let ctx = null;
 let currentHoverPixel = null;
 let viewMode = 'combined'; // 'separate' or 'combined'
+let transferMode = 'eotf'; // 'oetf' or 'eotf'
+let peakBrightness = 1000; // Peak brightness in nits
 let histogram = null; // Store histogram data
 let updateGraphTimeout = null; // For debouncing graph updates
 let lastUpdateTime = 0; // For throttling
 
 // Initialize graphs
 function initializeGraphs() {
+    if (transferMode === 'eotf') {
+        initializeEOTFGraphs();
+    } else {
+        initializeOETFGraphs();
+    }
+}
+
+// Initialize EOTF graphs (encoded input -> brightness output)
+function initializeEOTFGraphs() {
+    const sdrLayout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 30, r: 30, b: 50, l: 60 },
+        xaxis: {
+            title: 'Encoded Signal Input (0=black, 1=max code)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1]
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, peakBrightness]
+        },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        }
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: false,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['toImage']
+    };
+    
+    // Generate transfer curves for EOTF
+    const numPoints = 256;
+    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
+    // sRGB EOTF (gamma 2.2 approximation)
+    const srgbLayout = {...sdrLayout, title: 'sRGB EOTF (Display Response)'};
+    const srgbEOTF = encodedValues.map(v => {
+        // sRGB EOTF: decode then scale to display peak
+        const linear = TransferFunctions.sRGB.decode(v);
+        return linear * peakBrightness;
+    });
+    Plotly.newPlot('srgbGraph', [{
+        x: encodedValues,
+        y: srgbEOTF,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'sRGB',
+        line: { color: '#00bcd4', width: 2 },
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+    }], srgbLayout, config);
+    
+    // PQ EOTF (absolute brightness)
+    const pqLayout = {
+        ...sdrLayout,
+        title: 'PQ EOTF (ST.2084)',
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [0, Math.min(10000, peakBrightness * 1.2)],
+            type: 'log',
+            dtick: 1
+        }
+    };
+    const pqEOTF = encodedValues.map(v => {
+        // PQ EOTF: decode gives normalized 0-1, scale to 10000 nits
+        const normalized = TransferFunctions.PQ.decode(v);
+        return normalized * 10000; // PQ is absolute, always 10000 nits max
+    });
+    Plotly.newPlot('pqGraph', [{
+        x: encodedValues,
+        y: pqEOTF,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'PQ',
+        line: { color: '#ff9800', width: 2 },
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+    }], pqLayout, config);
+    
+    // HLG EOTF (relative to display peak)
+    const hlgLayout = {
+        ...sdrLayout,
+        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [0, peakBrightness * 1.2]
+        }
+    };
+    const hlgEOTF = encodedValues.map(v => {
+        // HLG EOTF: decode then apply system gamma and scale to display peak
+        const scene = TransferFunctions.HLG.decode(v);
+        // Apply system gamma (1.2 is typical)
+        const display = Math.pow(scene, 1.2);
+        return display * peakBrightness;
+    });
+    Plotly.newPlot('hlgGraph', [{
+        x: encodedValues,
+        y: hlgEOTF,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'HLG',
+        line: { color: '#9c27b0', width: 2 },
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+    }], hlgLayout, config);
+    
+    // Initialize combined graph
+    initializeCombinedEOTFGraph();
+}
+
+// Initialize OETF graphs (brightness input -> encoded output)
+function initializeOETFGraphs() {
     const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -208,7 +335,84 @@ function initializeGraphs() {
     initializeCombinedGraph();
 }
 
-// Initialize combined graph
+// Initialize combined EOTF graph
+function initializeCombinedEOTFGraph() {
+    const layout = {
+        paper_bgcolor: '#0a0a0a',
+        plot_bgcolor: '#0a0a0a',
+        font: { color: '#e0e0e0', size: 11 },
+        margin: { t: 40, r: 30, b: 50, l: 60 },
+        xaxis: {
+            title: 'Encoded Signal Input (0=black, 1=max code)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1],
+            dtick: 0.2
+        },
+        yaxis: {
+            title: 'Output Brightness (cd/m²)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, Math.max(peakBrightness, 1000)],
+            type: 'log',
+            dtick: 1
+        },
+        showlegend: true,
+        legend: {
+            x: 0.02,
+            y: 0.98,
+            bgcolor: 'rgba(0,0,0,0.5)'
+        },
+        hovermode: 'closest',
+        hoverlabel: {
+            bgcolor: 'rgba(0,0,0,0.8)',
+            font: {color: 'white'}
+        },
+        title: 'EOTF Comparison (Display Response Curves)'
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: false
+    };
+    
+    const numPoints = 256;
+    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
+    const traces = [
+        {
+            x: encodedValues,
+            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'sRGB',
+            line: { color: '#00bcd4', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        },
+        {
+            x: encodedValues,
+            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'PQ (10000 nits)',
+            line: { color: '#ff9800', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        },
+        {
+            x: encodedValues,
+            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+            type: 'scatter',
+            mode: 'lines',
+            name: `HLG (${peakBrightness} nits)`,
+            line: { color: '#9c27b0', width: 2 },
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        }
+    ];
+    
+    Plotly.newPlot('combinedGraph', traces, layout, config);
+}
+
+// Initialize combined OETF graph
 function initializeCombinedGraph() {
     const layout = {
         paper_bgcolor: '#0a0a0a',
@@ -1090,6 +1294,32 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             Plotly.Plots.resize('combinedGraph');
         }, 100);
+    });
+    
+    // Transfer mode toggles (OETF vs EOTF)
+    oetfMode.addEventListener('click', function() {
+        transferMode = 'oetf';
+        oetfMode.classList.add('active');
+        eotfMode.classList.remove('active');
+        initializeGraphs();
+        updateGraphs();
+    });
+    
+    eotfMode.addEventListener('click', function() {
+        transferMode = 'eotf';
+        eotfMode.classList.add('active');
+        oetfMode.classList.remove('active');
+        initializeGraphs();
+        updateGraphs();
+    });
+    
+    // Peak brightness selector
+    peakBrightnessSelect.addEventListener('change', function() {
+        peakBrightness = parseInt(peakBrightnessSelect.value);
+        if (transferMode === 'eotf') {
+            initializeGraphs();
+            updateGraphs();
+        }
     });
     
     // Initialize with combined view

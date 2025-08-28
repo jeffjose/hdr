@@ -1,14 +1,22 @@
 # Deployment Guide for Vercel
 
+## Build Process
+**No build required!** This is a static site with:
+- Pure HTML/CSS/JavaScript
+- No bundling or transpilation needed
+- All dependencies loaded from CDNs (Plotly.js)
+- Runs entirely client-side
+
 ## Prerequisites
 - Vercel account (free tier works)
 - Git repository (GitHub, GitLab, or Bitbucket)
+- pnpm (for local development only)
 
 ## Method 1: Deploy via Vercel CLI
 
 1. Install Vercel CLI:
 ```bash
-npm i -g vercel
+pnpm add -g vercel
 ```
 
 2. Deploy:

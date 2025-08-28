@@ -1,7 +1,8 @@
 {
-  "buildCommand": "",
+  "buildCommand": "echo 'No build required'",
   "outputDirectory": ".",
   "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
   "rewrites": [
     {
       "source": "/(.*)",

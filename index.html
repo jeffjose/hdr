@@ -119,6 +119,30 @@
                     </div>
                 </div>
             </div>
+            <div class="controls" style="border-top: 1px solid #333; margin-top: 8px; padding-top: 8px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="control-label">Mode</span>
+                        <div class="toggle-group">
+                            <button id="oetfMode">OETF</button>
+                            <button id="eotfMode" class="active">EOTF</button>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;" id="peakBrightnessControl">
+                        <span class="control-label">Peak</span>
+                        <select id="peakBrightness" style="background: #1a1a1a; color: #e0e0e0; border: 1px solid #333; padding: 4px 8px; border-radius: 4px;">
+                            <option value="100">100 nits (SDR)</option>
+                            <option value="200">200 nits</option>
+                            <option value="400">400 nits</option>
+                            <option value="600">600 nits</option>
+                            <option value="1000" selected>1000 nits</option>
+                            <option value="2000">2000 nits</option>
+                            <option value="4000">4000 nits</option>
+                            <option value="10000">10000 nits</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="graphs-container combined-view" id="graphsContainer">
                 <div class="graph" id="srgbGraph"></div>
                 <div class="graph" id="pqGraph"></div>
