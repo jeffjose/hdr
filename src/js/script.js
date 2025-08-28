@@ -182,7 +182,7 @@ function initializeSeparateEOTFGraphs() {
         title: 'PQ EOTF (ST.2084)',
         yaxis: {
             ...sdrLayout.yaxis,
-            range: [0, Math.min(10000, peakBrightness * 1.2)],
+            range: [0.1, Math.min(10000, peakBrightness * 1.2)],
             type: 'log',
             dtick: 1
         }
@@ -365,7 +365,7 @@ function initializeCombinedEOTFGraph() {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, Math.max(peakBrightness, 1000)],
+            range: [0.1, Math.max(peakBrightness, 1000)],
             type: 'log',
             dtick: 1
         },
