@@ -2,7 +2,7 @@
 
 // Global settings for histogram visualization
 let histogramVisualization = 'area'; // 'bars', 'line', 'area', 'step', 'curve'
-let histogramScale = 'linear'; // 'linear', 'log', 'sqrt'
+let histogramScale = 'log'; // 'linear', 'log', 'sqrt'
 
 // Helper function to create histogram trace with multiple visualization options
 function createHistogramTrace(histogram, scaleFactor = 0.3, baseColor = [255, 255, 255], transformFunc = null) {

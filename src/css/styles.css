@@ -1,0 +1,367 @@
+/* HDR Image Analyzer - Main Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.left-panel, .right-panel {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.left-panel {
+    border-right: 1px solid #333;
+}
+
+.input-bar {
+    background: #1f1f1f;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 8px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.divider-vertical {
+    width: 1px;
+    background: #333;
+    margin: 0 4px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #777;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.samples-dropdown {
+    position: relative;
+}
+
+.samples-trigger {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #e0e0e0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 100px;
+}
+
+.samples-trigger:hover {
+    background: #333;
+    border-color: #4a9eff;
+}
+
+.samples-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    padding: 4px;
+    display: none;
+    z-index: 100;
+    min-width: 150px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.samples-menu.active {
+    display: block;
+}
+
+.sample-item {
+    padding: 6px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.sample-item:hover {
+    background: #353535;
+}
+
+.upload-area {
+    border: 1px dashed #555;
+    border-radius: 4px;
+    padding: 6px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 12px;
+    background: #252525;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 140px;
+}
+
+.upload-area:hover {
+    border-color: #4a9eff;
+    background: rgba(74, 158, 255, 0.08);
+}
+
+.upload-area.dragover {
+    border-color: #4a9eff;
+    background: rgba(74, 158, 255, 0.15);
+}
+
+.url-input-group {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.url-input-group input {
+    flex: 1;
+    background: #252525;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    min-width: 0;
+}
+
+.url-input-group button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+#urlError {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    color: #ff6b6b;
+    font-size: 11px;
+    margin-top: 4px;
+    padding: 4px 8px;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 4px;
+    display: none;
+}
+
+#fileInput {
+    display: none;
+}
+
+.image-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a0a;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    margin-top: 10px;
+}
+
+#uploadedImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.graphs-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.graph {
+    flex: 1;
+    background: #0a0a0a;
+    border-radius: 8px;
+    min-height: 0;
+}
+
+.controls {
+    padding: 10px;
+    background: #252525;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.toggle-group {
+    display: flex;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-left: 10px;
+}
+
+.toggle-group button {
+    padding: 6px 14px;
+    background: transparent;
+    border: none;
+    border-right: 1px solid #333;
+    font-size: 12px;
+    color: #999;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.toggle-group button:last-child {
+    border-right: none;
+}
+
+.toggle-group button:hover {
+    background: rgba(74, 158, 255, 0.1);
+    color: #ccc;
+}
+
+.toggle-group button.active {
+    background: #4a9eff;
+    color: white;
+    font-weight: 600;
+}
+
+.controls-right {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    gap: 10px;
+}
+
+.control-label {
+    font-size: 11px;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.combined-graph {
+    flex: 1;
+    background: #0a0a0a;
+    border-radius: 8px;
+    min-height: 0;
+    display: none;
+}
+
+.combined-graph.active {
+    display: block;
+}
+
+.graphs-container.combined-view .graph {
+    display: none;
+}
+
+.hover-indicator {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #4a9eff;
+    border-radius: 50%;
+    pointer-events: none;
+    display: none;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+    will-change: transform;
+    transition: none;
+}
+
+.info {
+    padding: 8px 10px;
+    background: #252525;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+button {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+    font-size: 13px;
+}
+
+button:hover {
+    background: #3a8eef;
+}
+
+button:disabled {
+    background: #555;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+canvas {
+    display: none;
+}

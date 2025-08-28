@@ -85,7 +85,7 @@ let imageData = null;
 let canvas = null;
 let ctx = null;
 let currentHoverPixel = null;
-let viewMode = 'separate'; // 'separate' or 'combined'
+let viewMode = 'combined'; // 'separate' or 'combined'
 let histogram = null; // Store histogram data
 let updateGraphTimeout = null; // For debouncing graph updates
 let lastUpdateTime = 0; // For throttling
@@ -726,6 +726,34 @@ function generateTestPattern(type) {
             ctx.fillRect(0, 0, width, height);
             break;
             
+        case 'white':
+            ctx.fillStyle = 'rgb(255, 255, 255)';
+            ctx.fillRect(0, 0, width, height);
+            break;
+            
+        case 'black':
+            ctx.fillStyle = 'rgb(0, 0, 0)';
+            ctx.fillRect(0, 0, width, height);
+            break;
+            
+        case 'radialGradient':
+            const radialGrad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.min(width, height)/2);
+            radialGrad.addColorStop(0, 'rgb(255, 255, 255)');
+            radialGrad.addColorStop(1, 'rgb(0, 0, 0)');
+            ctx.fillStyle = radialGrad;
+            ctx.fillRect(0, 0, width, height);
+            break;
+            
+        case 'graySteps':
+            const steps = 10;
+            const stepWidth = width / steps;
+            for (let i = 0; i < steps; i++) {
+                const gray = Math.round((i / (steps - 1)) * 255);
+                ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                ctx.fillRect(i * stepWidth, 0, stepWidth, height);
+            }
+            break;
+            
         case 'colorBars':
             const colors = [
                 'rgb(255, 255, 255)', // white
@@ -943,21 +971,43 @@ document.addEventListener('DOMContentLoaded', function() {
     showCurves.addEventListener('change', updateGraphs);
     showHistogram.addEventListener('change', updateGraphs);
     
-    // Sample image buttons
-    document.querySelectorAll('.sample-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const sample = this.dataset.sample;
-            
-            // Test patterns
-            if (['red', 'green', 'blue', 'gradient', 'colorBars'].includes(sample)) {
-                generateTestPattern(sample);
-            } 
-            // Sample images
-            else if (['landscape', 'sunset', 'neon'].includes(sample)) {
-                generateSampleImage(sample);
-            }
+    // Samples dropdown functionality
+    const samplesTrigger = document.getElementById('samplesTrigger');
+    const samplesMenu = document.getElementById('samplesMenu');
+    
+    if (samplesTrigger && samplesMenu) {
+        // Toggle dropdown
+        samplesTrigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            samplesMenu.classList.toggle('active');
         });
-    });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function() {
+            samplesMenu.classList.remove('active');
+        });
+        
+        // Handle sample selection
+        document.querySelectorAll('.sample-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const sample = this.dataset.sample;
+                
+                // Update button text
+                samplesTrigger.innerHTML = `<span>▼</span> ${this.textContent.substring(2)}`;
+                
+                // Close menu
+                samplesMenu.classList.remove('active');
+                
+                // Generate sample
+                if (['red', 'green', 'blue', 'white', 'black', 'gradient', 'radialGradient', 'colorBars', 'graySteps'].includes(sample)) {
+                    generateTestPattern(sample);
+                } else if (['landscape', 'sunset', 'neon', 'city', 'fire', 'ocean'].includes(sample)) {
+                    generateSampleImage(sample);
+                }
+            });
+        });
+    }
     
     // View toggle buttons
     separateView.addEventListener('click', () => {
@@ -979,6 +1029,36 @@ document.addEventListener('DOMContentLoaded', function() {
             Plotly.Plots.resize('combinedGraph');
         }, 100);
     });
+    
+    // Scale toggle buttons (for histogram)
+    const linearScale = document.getElementById('linearScale');
+    const logScale = document.getElementById('logScale');
+    
+    linearScale.addEventListener('click', () => {
+        if (typeof histogramScale !== 'undefined') {
+            histogramScale = 'linear';
+        }
+        linearScale.classList.add('active');
+        logScale.classList.remove('active');
+        if (histogram) updateGraphs();
+    });
+    
+    logScale.addEventListener('click', () => {
+        if (typeof histogramScale !== 'undefined') {
+            histogramScale = 'log';
+        }
+        logScale.classList.add('active');
+        linearScale.classList.remove('active');
+        if (histogram) updateGraphs();
+    });
+    
+    // Initialize with combined view
+    if (viewMode === 'combined') {
+        combinedView.classList.add('active');
+        separateView.classList.remove('active');
+        graphsContainer.classList.add('combined-view');
+        combinedGraph.classList.add('active');
+    }
     
     // Image hover interaction - optimized for performance
     uploadedImage.addEventListener('mousemove', function(e) {

@@ -36,31 +36,122 @@
             border-right: 1px solid #333;
         }
         
-        .input-section {
+        .input-bar {
             background: #1f1f1f;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
         }
         
-        .input-header {
-            font-size: 11px;
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 8px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .divider-vertical {
+            width: 1px;
+            background: #333;
+            margin: 0 4px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .input-label {
+            font-size: 10px;
             text-transform: uppercase;
-            color: #888;
-            margin-bottom: 10px;
+            color: #777;
             font-weight: 500;
             letter-spacing: 0.5px;
         }
         
+        .samples-dropdown {
+            position: relative;
+        }
+        
+        .samples-trigger {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 100px;
+        }
+        
+        .samples-trigger:hover {
+            background: #333;
+            border-color: #4a9eff;
+        }
+        
+        .samples-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            padding: 4px;
+            display: none;
+            z-index: 100;
+            min-width: 150px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .samples-menu.active {
+            display: block;
+        }
+        
+        .sample-item {
+            padding: 6px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+        
+        .sample-item:hover {
+            background: #353535;
+        }
+        
         .upload-area {
             border: 1px dashed #555;
-            border-radius: 6px;
-            padding: 12px;
+            border-radius: 4px;
+            padding: 6px 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            font-size: 13px;
+            font-size: 12px;
             background: #252525;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 140px;
         }
         
         .upload-area:hover {
@@ -73,30 +164,26 @@
             background: rgba(74, 158, 255, 0.15);
         }
         
-        .compact-row {
+        .url-input-group {
             display: flex;
-            gap: 8px;
-            align-items: center;
+            gap: 4px;
+            flex: 1;
         }
         
-        .url-input-wrapper {
-            display: flex;
-            gap: 6px;
-        }
-        
-        .url-input-wrapper input {
+        .url-input-group input {
             flex: 1;
             background: #252525;
             border: 1px solid #444;
             color: #e0e0e0;
             padding: 6px 10px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 12px;
+            min-width: 0;
         }
         
-        .url-input-wrapper button {
-            padding: 6px 14px;
-            font-size: 13px;
+        .url-input-group button {
+            padding: 6px 12px;
+            font-size: 12px;
         }
         
         #fileInput {
@@ -145,22 +232,55 @@
             align-items: center;
         }
         
-        .view-toggle {
+        .toggle-group {
             display: flex;
-            gap: 5px;
-            margin-left: auto;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-left: 10px;
         }
         
-        .view-toggle button {
-            padding: 6px 12px;
-            background: #333;
-            border: 1px solid #444;
-            font-size: 13px;
+        .toggle-group button {
+            padding: 6px 14px;
+            background: transparent;
+            border: none;
+            border-right: 1px solid #333;
+            font-size: 12px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
         }
         
-        .view-toggle button.active {
+        .toggle-group button:last-child {
+            border-right: none;
+        }
+        
+        .toggle-group button:hover {
+            background: rgba(74, 158, 255, 0.1);
+            color: #ccc;
+        }
+        
+        .toggle-group button.active {
             background: #4a9eff;
-            border-color: #4a9eff;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .controls-right {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 10px;
+        }
+        
+        .control-label {
+            font-size: 11px;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
         }
         
         .combined-graph {
@@ -238,76 +358,101 @@
             display: none;
         }
         
-        .samples-section {
-            background: #1f1f1f;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 12px;
-        }
-        
-        .samples-title {
+        #urlError {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            color: #ff6b6b;
             font-size: 11px;
-            text-transform: uppercase;
-            color: #888;
-            margin-bottom: 8px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
-        
-        .sample-buttons {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: 6px;
-        }
-        
-        .sample-btn {
-            padding: 5px 8px;
-            background: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            font-size: 11px;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .sample-btn:hover {
-            background: #353535;
-            border-color: #4a9eff;
+            margin-top: 4px;
+            padding: 4px 8px;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 4px;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="left-panel">
-            <!-- Compact Input Section -->
-            <div class="input-section">
-                <div class="input-header">Load Image</div>
-                <div class="upload-area" id="uploadArea">
-                    <span>📁 Drop image or click to browse</span>
-                    <input type="file" id="fileInput" accept="image/*">
+            <!-- Compact Horizontal Input Bar -->
+            <div class="input-bar">
+                <!-- Logo/Branding -->
+                <div class="logo-section">
+                    <div class="logo">
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Gradient definitions -->
+                            <defs>
+                                <linearGradient id="hdrgradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#00bcd4;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#ff9800;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#9c27b0;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <!-- HDR curve icon -->
+                            <path d="M4 20 Q 8 18, 12 12 T 20 4" stroke="url(#hdrgradient)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                            <path d="M4 24 Q 10 22, 14 16 T 24 8" stroke="#4a9eff" stroke-width="1.5" fill="none" opacity="0.5" stroke-linecap="round"/>
+                            <!-- Dots representing data points -->
+                            <circle cx="6" cy="19" r="1.5" fill="#00bcd4"/>
+                            <circle cx="12" cy="14" r="1.5" fill="#ff9800"/>
+                            <circle cx="18" cy="8" r="1.5" fill="#9c27b0"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">
+                        <div style="font-weight: 600; font-size: 13px; color: #e0e0e0;">HDR Analyzer</div>
+                        <div style="font-size: 9px; color: #666; letter-spacing: 0.5px;">TRANSFER FUNCTIONS</div>
+                    </div>
                 </div>
-                <div style="margin-top: 8px;">
-                    <div class="url-input-wrapper">
+                
+                <div class="divider-vertical"></div>
+                
+                <!-- Samples Dropdown -->
+                <div class="input-group">
+                    <div class="input-label">Samples</div>
+                    <div class="samples-dropdown">
+                        <button class="samples-trigger" id="samplesTrigger">
+                            <span>▼</span> Choose
+                        </button>
+                        <div class="samples-menu" id="samplesMenu">
+                            <div style="padding: 4px 8px; font-size: 10px; color: #777; border-bottom: 1px solid #333;">Test Patterns</div>
+                            <div class="sample-item" data-sample="red">🔴 Pure Red</div>
+                            <div class="sample-item" data-sample="green">🟢 Pure Green</div>
+                            <div class="sample-item" data-sample="blue">🔵 Pure Blue</div>
+                            <div class="sample-item" data-sample="white">⚪ Pure White</div>
+                            <div class="sample-item" data-sample="black">⚫ Pure Black</div>
+                            <div class="sample-item" data-sample="gradient">🌈 Linear Gradient</div>
+                            <div class="sample-item" data-sample="radialGradient">🎯 Radial Gradient</div>
+                            <div class="sample-item" data-sample="colorBars">📊 SMPTE Color Bars</div>
+                            <div class="sample-item" data-sample="graySteps">📶 Gray Steps</div>
+                            <div style="padding: 4px 8px; font-size: 10px; color: #777; border-bottom: 1px solid #333; margin-top: 4px;">Generated Scenes</div>
+                            <div class="sample-item" data-sample="landscape">🏞️ Landscape</div>
+                            <div class="sample-item" data-sample="sunset">🌅 Sunset</div>
+                            <div class="sample-item" data-sample="neon">💫 Neon Lights</div>
+                            <div class="sample-item" data-sample="city">🌃 City Night</div>
+                            <div class="sample-item" data-sample="fire">🔥 Fire Effect</div>
+                            <div class="sample-item" data-sample="ocean">🌊 Ocean Waves</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Upload Area -->
+                <div class="input-group">
+                    <div class="input-label">Upload</div>
+                    <div class="upload-area" id="uploadArea">
+                        <span>📁 Drop or browse</span>
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    </div>
+                </div>
+                
+                <!-- URL Input -->
+                <div class="input-group" style="flex: 1; position: relative;">
+                    <div class="input-label">URL</div>
+                    <div class="url-input-group">
                         <input type="url" id="urlInput" placeholder="Paste image URL...">
                         <button id="loadUrlBtn">Load</button>
                     </div>
-                    <div id="urlError" style="color: #ff6b6b; font-size: 11px; margin-top: 4px; display: none;"></div>
-                </div>
-            </div>
-            
-            <!-- Test Samples Section -->
-            <div class="samples-section">
-                <div class="samples-title">Quick Samples</div>
-                <div class="sample-buttons">
-                    <button class="sample-btn" data-sample="red" title="Pure Red">Red</button>
-                    <button class="sample-btn" data-sample="green" title="Pure Green">Green</button>
-                    <button class="sample-btn" data-sample="blue" title="Pure Blue">Blue</button>
-                    <button class="sample-btn" data-sample="gradient" title="Gradient">Gradient</button>
-                    <button class="sample-btn" data-sample="colorBars" title="Color Bars">Bars</button>
-                    <button class="sample-btn" data-sample="landscape" title="Landscape">Landscape</button>
-                    <button class="sample-btn" data-sample="sunset" title="Sunset">Sunset</button>
-                    <button class="sample-btn" data-sample="neon" title="Neon Lights">Neon</button>
+                    <div id="urlError"></div>
                 </div>
             </div>
             
@@ -332,9 +477,17 @@
                     <input type="checkbox" id="showHistogram" checked>
                     Show Histogram
                 </label>
-                <div class="view-toggle">
-                    <button id="separateView" class="active">Separate</button>
-                    <button id="combinedView">Combined</button>
+                <div class="controls-right">
+                    <span class="control-label">View</span>
+                    <div class="toggle-group">
+                        <button id="separateView">Separate</button>
+                        <button id="combinedView" class="active">Combined</button>
+                    </div>
+                    <span class="control-label">Scale</span>
+                    <div class="toggle-group">
+                        <button id="linearScale">Linear</button>
+                        <button id="logScale" class="active">Logarithmic</button>
+                    </div>
                 </div>
             </div>
             <div class="graphs-container" id="graphsContainer">
@@ -348,8 +501,9 @@
     
     <canvas id="canvas"></canvas>
     <div class="hover-indicator" id="hoverIndicator"></div>
-    <script src="histogram-enhancement.js"></script>
-    <script src="script.js"></script>
-    <script src="url-loader.js"></script>
+    <script src="src/js/histogram-enhancement.js"></script>
+    <script src="src/js/sample-generators.js"></script>
+    <script src="src/js/script.js"></script>
+    <script src="src/js/url-loader.js"></script>
 </body>
 </html>
