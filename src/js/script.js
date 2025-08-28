@@ -109,6 +109,15 @@ function initializeGraphs() {
 
 // Initialize EOTF graphs (encoded input -> brightness output)
 function initializeEOTFGraphs() {
+    // Only initialize graphs based on current view mode
+    if (viewMode === 'combined') {
+        initializeCombinedEOTFGraph();
+    } else {
+        initializeSeparateEOTFGraphs();
+    }
+}
+
+function initializeSeparateEOTFGraphs() {
     const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -218,13 +227,19 @@ function initializeEOTFGraphs() {
         line: { color: '#9c27b0', width: 2 },
         hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
     }], hlgLayout, config);
-    
-    // Initialize combined graph
-    initializeCombinedEOTFGraph();
 }
 
 // Initialize OETF graphs (brightness input -> encoded output)
 function initializeOETFGraphs() {
+    // Only initialize graphs based on current view mode
+    if (viewMode === 'combined') {
+        initializeCombinedGraph();
+    } else {
+        initializeSeparateOETFGraphs();
+    }
+}
+
+function initializeSeparateOETFGraphs() {
     const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
@@ -330,9 +345,6 @@ function initializeOETFGraphs() {
         line: { color: '#9c27b0', width: 2 },
         hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
-    
-    // Initialize combined graph
-    initializeCombinedGraph();
 }
 
 // Initialize combined EOTF graph
@@ -1507,6 +1519,13 @@ document.addEventListener('DOMContentLoaded', function() {
         combinedView.classList.remove('active');
         graphsContainer.classList.remove('combined-view');
         combinedGraph.classList.remove('active');
+        // Re-initialize for separate view if needed
+        if (transferMode === 'eotf') {
+            initializeSeparateEOTFGraphs();
+        } else {
+            initializeSeparateOETFGraphs();
+        }
+        updateGraphs();
     });
     
     combinedView.addEventListener('click', () => {
@@ -1515,6 +1534,12 @@ document.addEventListener('DOMContentLoaded', function() {
         separateView.classList.remove('active');
         graphsContainer.classList.add('combined-view');
         combinedGraph.classList.add('active');
+        // Re-initialize for combined view
+        if (transferMode === 'eotf') {
+            initializeCombinedEOTFGraph();
+        } else {
+            initializeCombinedGraph();
+        }
         updateCombinedGraph();
         setTimeout(() => {
             const combinedGraphDiv = document.getElementById('combinedGraph');
