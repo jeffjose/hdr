@@ -36,24 +36,67 @@
             border-right: 1px solid #333;
         }
         
-        .upload-area {
-            border: 2px dashed #666;
+        .input-section {
+            background: #1f1f1f;
             border-radius: 8px;
-            padding: 30px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .input-header {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 10px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        .upload-area {
+            border: 1px dashed #555;
+            border-radius: 6px;
+            padding: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            margin-bottom: 20px;
+            font-size: 13px;
+            background: #252525;
         }
         
         .upload-area:hover {
             border-color: #4a9eff;
-            background: rgba(74, 158, 255, 0.05);
+            background: rgba(74, 158, 255, 0.08);
         }
         
         .upload-area.dragover {
             border-color: #4a9eff;
-            background: rgba(74, 158, 255, 0.1);
+            background: rgba(74, 158, 255, 0.15);
+        }
+        
+        .compact-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .url-input-wrapper {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .url-input-wrapper input {
+            flex: 1;
+            background: #252525;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .url-input-wrapper button {
+            padding: 6px 14px;
+            font-size: 13px;
         }
         
         #fileInput {
@@ -69,6 +112,7 @@
             border-radius: 8px;
             overflow: hidden;
             position: relative;
+            margin-top: 10px;
         }
         
         #uploadedImage {
@@ -151,25 +195,32 @@
         }
         
         .info {
-            padding: 10px;
+            padding: 8px 10px;
             background: #252525;
-            border-radius: 8px;
-            font-size: 14px;
-            margin-bottom: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.5;
         }
         
         button {
             background: #4a9eff;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
             transition: background 0.3s;
+            font-size: 13px;
         }
         
         button:hover {
             background: #3a8eef;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         
         label {
@@ -188,83 +239,84 @@
         }
         
         .samples-section {
-            margin-bottom: 15px;
+            background: #1f1f1f;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 12px;
         }
         
         .samples-title {
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
-            color: #999;
+            color: #888;
             margin-bottom: 8px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
         
         .sample-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 6px;
         }
         
         .sample-btn {
-            padding: 6px 12px;
-            background: #333;
-            border: 1px solid #444;
-            font-size: 13px;
-            flex: 0 0 auto;
+            padding: 5px 8px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            font-size: 11px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .sample-btn:hover {
-            background: #444;
+            background: #353535;
             border-color: #4a9eff;
-        }
-        
-        .divider {
-            border-top: 1px solid #333;
-            margin: 15px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="left-panel">
+            <!-- Compact Input Section -->
+            <div class="input-section">
+                <div class="input-header">Load Image</div>
+                <div class="upload-area" id="uploadArea">
+                    <span>📁 Drop image or click to browse</span>
+                    <input type="file" id="fileInput" accept="image/*">
+                </div>
+                <div style="margin-top: 8px;">
+                    <div class="url-input-wrapper">
+                        <input type="url" id="urlInput" placeholder="Paste image URL...">
+                        <button id="loadUrlBtn">Load</button>
+                    </div>
+                    <div id="urlError" style="color: #ff6b6b; font-size: 11px; margin-top: 4px; display: none;"></div>
+                </div>
+            </div>
+            
+            <!-- Test Samples Section -->
             <div class="samples-section">
-                <div class="samples-title">Test Patterns</div>
+                <div class="samples-title">Quick Samples</div>
                 <div class="sample-buttons">
-                    <button class="sample-btn" data-sample="red">Pure Red</button>
-                    <button class="sample-btn" data-sample="green">Pure Green</button>
-                    <button class="sample-btn" data-sample="blue">Pure Blue</button>
-                    <button class="sample-btn" data-sample="gradient">Gradient</button>
-                    <button class="sample-btn" data-sample="colorBars">Color Bars</button>
+                    <button class="sample-btn" data-sample="red" title="Pure Red">Red</button>
+                    <button class="sample-btn" data-sample="green" title="Pure Green">Green</button>
+                    <button class="sample-btn" data-sample="blue" title="Pure Blue">Blue</button>
+                    <button class="sample-btn" data-sample="gradient" title="Gradient">Gradient</button>
+                    <button class="sample-btn" data-sample="colorBars" title="Color Bars">Bars</button>
+                    <button class="sample-btn" data-sample="landscape" title="Landscape">Landscape</button>
+                    <button class="sample-btn" data-sample="sunset" title="Sunset">Sunset</button>
+                    <button class="sample-btn" data-sample="neon" title="Neon Lights">Neon</button>
                 </div>
             </div>
             
-            <div class="samples-section">
-                <div class="samples-title">Sample Images</div>
-                <div class="sample-buttons">
-                    <button class="sample-btn" data-sample="landscape">Landscape</button>
-                    <button class="sample-btn" data-sample="sunset">Sunset</button>
-                    <button class="sample-btn" data-sample="neon">Neon Lights</button>
-                </div>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="upload-area" id="uploadArea">
-                <p>📁 Drop an image here or click to upload</p>
-                <input type="file" id="fileInput" accept="image/*">
-            </div>
-            
-            <div class="url-input-section" style="margin-top: 15px;">
-                <div style="display: flex; gap: 8px;">
-                    <input type="url" id="urlInput" placeholder="Or paste image URL here..." 
-                        style="flex: 1; background: #252525; border: 1px solid #444; color: #e0e0e0; 
-                               padding: 8px 12px; border-radius: 4px; font-size: 14px;">
-                    <button id="loadUrlBtn" style="padding: 8px 16px;">Load URL</button>
-                </div>
-                <div id="urlError" style="color: #ff6b6b; font-size: 12px; margin-top: 5px; display: none;"></div>
-            </div>
+            <!-- Image Info -->
             <div class="info" id="imageInfo">
                 No image loaded
             </div>
+            
+            <!-- Image Display Area -->
             <div class="image-container">
                 <img id="uploadedImage" style="display: none;">
             </div>
@@ -298,5 +350,6 @@
     <div class="hover-indicator" id="hoverIndicator"></div>
     <script src="histogram-enhancement.js"></script>
     <script src="script.js"></script>
+    <script src="url-loader.js"></script>
 </body>
 </html>
