@@ -1455,53 +1455,48 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // All curves should use the same x-axis scale for the combined view
-        // We'll use 0-100 scale (where 1 = 100 nits, 100 = 10,000 nits)
-        // This matches how pixel.linear is scaled (0-1 = 0-100 nits)
+        // Create a unified x-axis from 0 to 100 for all curves
+        // This ensures hover points align correctly
+        // Include key points like 1.0 and 12.0 explicitly
+        const numPoints = 1001; // Use 1001 to ensure we hit exact values
+        const xValues = Array.from({length: numPoints}, (_, i) => (i / 1000) * 100);
         
-        const numPoints = 200;
-        const xValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
-        
-        // sRGB: Only plot up to x=1 (100 nits)
-        const srgbX = xValues.filter(v => v <= 1);
-        const srgbY = srgbX.map(v => TransferFunctions.sRGB.encode(v));
-        
-        // HLG: Plot up to x=12 (1200 nits)
-        const hlgX = xValues.filter(v => v <= 12);
-        const hlgY = hlgX.map(v => TransferFunctions.HLG.encode(v));
-        
-        // PQ: Full range to x=100 (10,000 nits)
-        const pqX = xValues;
-        const pqY = pqX.map(v => TransferFunctions.PQ.encode(v));
+        // Calculate y values for each curve at every x position
+        // Use null for out-of-range values
+        const srgbY = xValues.map(x => x <= 1 ? TransferFunctions.sRGB.encode(x) : null);
+        const hlgY = xValues.map(x => x <= 12 ? TransferFunctions.HLG.encode(x) : null);
+        const pqY = xValues.map(x => TransferFunctions.PQ.encode(x));
         
         traces.push(
             {
-                x: srgbX,
+                x: xValues,
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB',
                 line: { color: '#00bcd4', width: 2 },
+                connectgaps: false,  // Don't connect over null values
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: hlgX,
+                x: xValues,
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'HLG',
                 line: { color: '#9c27b0', width: 2 },
+                connectgaps: false,  // Don't connect over null values
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: pqX,
+                x: xValues,
                 y: pqY,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
                 line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
-                text: pqX.map(v => `${(v * 100).toFixed(0)} nits`)
+                text: xValues.map(v => `${(v * 100).toFixed(0)} nits`)
             }
         );
     }
@@ -1627,10 +1622,10 @@ function updateCombinedOETFGraph() {
         },
         margin: { t: 40, r: 50, b: 60, l: 60 },
         xaxis: {
-            title: 'Linear Light (1=100 nits, 100=10,000 nits)',
+            title: 'Linear Light (1=100 nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 6],  // Default view shows 0-600 nits, users can zoom to see more
+            range: [0, 6],  // Default view shows 0-600 nits
             // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
