@@ -503,11 +503,11 @@ function initializeCombinedGraph() {
         },
         margin: { t: 40, r: 30, b: 60, l: 70 },
         xaxis: {
-            title: 'Scene Light Intensity (nits)',
+            title: 'Linear Intensity',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1000],
-            dtick: 100
+            range: [0, 12],
+            dtick: 2
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
@@ -532,11 +532,11 @@ function initializeCombinedGraph() {
         title: 'OETF (Camera Encoding Curves)',
         annotations: [
             {
-                x: 100,
+                x: 1,
                 y: 1.0,
                 xref: 'x',
                 yref: 'y',
-                text: 'SDR Peak<br>(100 nits)',
+                text: 'Reference<br>White',
                 showarrow: true,
                 arrowhead: 2,
                 arrowsize: 1,
@@ -555,48 +555,36 @@ function initializeCombinedGraph() {
     };
     
     const numPoints = 200;
-    // Create linear points from 0 to 1000 nits  
-    const xNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1000);
+    // Create linear points from 0 to 12 (relative intensity)
+    const xLinear = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
     
-    // Convert nits to our relative scale (1 = 100 nits)
-    const xRelative = xNits.map(nits => nits / 100);
+    // sRGB: Clips at 1.0
+    const srgbY = xLinear.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
     
-    // sRGB: Clips at 100 nits (relative 1.0)
-    const srgbY = xRelative.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+    // HLG: Can encode the full range  
+    const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
     
-    // PQ: Absolute encoding up to 10,000 nits
-    const pqY = xRelative.map(v => TransferFunctions.PQ.encode(v));
-    
-    // HLG: Relative encoding
-    const hlgY = xRelative.map(v => TransferFunctions.HLG.encode(v));
+    // PQ: For comparison, though it uses absolute scale
+    const pqY = xLinear.map(v => TransferFunctions.PQ.encode(v));
     
     const traces = [
         {
-            x: xNits,
+            x: xLinear,
             y: srgbY,
             type: 'scatter',
             mode: 'lines',
-            name: 'sRGB (clips at 100)',
-            line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'sRGB<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
+            name: 'SDR gamma curve',
+            line: { color: '#ff4444', width: 2 },
+            hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
         },
         {
-            x: xNits,
-            y: pqY,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'PQ (10,000 nits)',
-            line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'PQ<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
-        },
-        {
-            x: xNits,
+            x: xLinear,
             y: hlgY,
             type: 'scatter',
             mode: 'lines',
-            name: 'HLG (relative)',
-            line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'HLG<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
+            name: 'Hybrid log-gamma',
+            line: { color: '#4444ff', width: 2 },
+            hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
         }
     ];
     
@@ -1478,11 +1466,8 @@ function updateCombinedOETFGraph() {
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 200;
-    // Create linear points from 0 to 1000 nits  
-    const xNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1000);
-    
-    // Convert nits to our relative scale (1 = 100 nits)
-    const xRelative = xNits.map(nits => nits / 100);
+    // Create linear points from 0 to 12 (relative intensity)
+    const xLinear = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
     
     const traces = [];
     
@@ -1499,93 +1484,69 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // sRGB: Clips at 100 nits (relative 1.0)
-        const srgbY = xRelative.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+        // sRGB: Clips at 1.0
+        const srgbY = xLinear.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
         
-        // PQ: Absolute encoding up to 10,000 nits
-        const pqY = xRelative.map(v => TransferFunctions.PQ.encode(v));
-        
-        // HLG: Relative encoding
-        const hlgY = xRelative.map(v => TransferFunctions.HLG.encode(v));
+        // HLG: Can encode the full range
+        const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
         
         traces.push(
             {
-                x: xNits,
+                x: xLinear,
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'sRGB (clips at 100)',
-                line: { color: '#00bcd4', width: 2 },
-                hovertemplate: 'sRGB<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
+                name: 'SDR gamma curve',
+                line: { color: '#ff4444', width: 2 },
+                hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: xNits,
-                y: pqY,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'PQ (ST.2084)',
-                line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'PQ<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
-            },
-            {
-                x: xNits,
+                x: xLinear,
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'HLG (relative)',
-                line: { color: '#9c27b0', width: 2 },
-                hovertemplate: 'HLG<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
+                name: 'Hybrid log-gamma',
+                line: { color: '#4444ff', width: 2 },
+                hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             }
         );
     }
     
     // Add hover pixel if exists
     if (currentHoverPixel) {
-        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
-            const func = type === 'sRGB' ? TransferFunctions.sRGB :
-                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
-            const symbol = type === 'sRGB' ? 'circle' :
-                          type === 'PQ' ? 'square' : 'diamond';
-            
-            // Convert relative linear values to nits for display
-            const rNits = currentHoverPixel.linear.r * 100;
-            const gNits = currentHoverPixel.linear.g * 100;
-            const bNits = currentHoverPixel.linear.b * 100;
-            
-            // For sRGB, only show if values are <= 100 nits
-            if (type === 'sRGB' && rNits > 100 && gNits > 100 && bNits > 100) {
-                return;
-            }
+        ['sRGB', 'HLG'].forEach((type) => {
+            const func = type === 'sRGB' ? TransferFunctions.sRGB : TransferFunctions.HLG;
+            const symbol = type === 'sRGB' ? 'circle' : 'diamond';
             
             traces.push(
                 {
-                    x: [rNits],
+                    x: [currentHoverPixel.linear.r],
                     y: [type === 'sRGB' && currentHoverPixel.linear.r > 1 ? 1.0 : func.encode(currentHoverPixel.linear.r)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} R`,
                     marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} R<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>`,
+                    hovertemplate: `Hover ${type} R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
                     showlegend: false
                 },
                 {
-                    x: [gNits],
+                    x: [currentHoverPixel.linear.g],
                     y: [type === 'sRGB' && currentHoverPixel.linear.g > 1 ? 1.0 : func.encode(currentHoverPixel.linear.g)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} G`,
                     marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} G<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>`,
+                    hovertemplate: `Hover ${type} G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
                     showlegend: false
                 },
                 {
-                    x: [bNits],
+                    x: [currentHoverPixel.linear.b],
                     y: [type === 'sRGB' && currentHoverPixel.linear.b > 1 ? 1.0 : func.encode(currentHoverPixel.linear.b)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} B`,
                     marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} B<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>`,
+                    hovertemplate: `Hover ${type} B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
                     showlegend: false
                 }
             );
@@ -1602,11 +1563,11 @@ function updateCombinedOETFGraph() {
         },
         margin: { t: 40, r: 50, b: 60, l: 60 },
         xaxis: {
-            title: 'Scene Light Intensity (nits)',
+            title: 'Linear Intensity',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1000],
-            dtick: 100
+            range: [0, 12],
+            dtick: 2
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
