@@ -549,12 +549,19 @@ function initializeCombinedGraph() {
         },
         {
             x: linearValues,
-            y: linearValues.map(v => TransferFunctions.PQ.encode(v)),
+            // PQ is absolute: 0.51 at 100 nits, 1.0 at 10,000 nits
+            // For visual comparison, we scale it up by ~2x
+            y: linearValues.map(v => {
+                const pqValue = TransferFunctions.PQ.encode(v);
+                return pqValue * 1.97; // Scale to visually match sRGB/HLG at x=1
+            }),
             type: 'scatter',
             mode: 'lines',
-            name: 'PQ',
+            name: 'PQ (scaled 2x)',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            hovertemplate: 'PQ<br>Input: %{x:.3f} (%{text})<br>Actual: %{customdata:.3f}<br>Scaled: %{y:.3f}<extra></extra>',
+            text: linearValues.map(v => `${(v * 100).toFixed(0)} nits`),
+            customdata: linearValues.map(v => TransferFunctions.PQ.encode(v))
         },
         {
             x: linearValues,
@@ -1478,12 +1485,19 @@ function updateCombinedOETFGraph() {
             },
             {
                 x: linearValues,
-                y: linearValues.map(v => TransferFunctions.PQ.encode(v)),
+                // PQ is absolute: 0.51 at 100 nits, 1.0 at 10,000 nits
+                // For visual comparison, we scale it up by ~2x
+                y: linearValues.map(v => {
+                    const pqValue = TransferFunctions.PQ.encode(v);
+                    return pqValue * 1.97; // Scale to visually match sRGB/HLG at x=1
+                }),
                 type: 'scatter',
                 mode: 'lines',
-                name: 'PQ',
+                name: 'PQ (scaled 2x)',
                 line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'PQ<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+                hovertemplate: 'PQ<br>Input: %{x:.3f} (%{text})<br>Actual: %{customdata:.3f}<br>Scaled: %{y:.3f}<extra></extra>',
+                text: linearValues.map(v => `${(v * 100).toFixed(0)} nits`),
+                customdata: linearValues.map(v => TransferFunctions.PQ.encode(v))
             },
             {
                 x: linearValues,
@@ -1504,11 +1518,12 @@ function updateCombinedOETFGraph() {
                          type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
             const symbol = type === 'sRGB' ? 'circle' :
                           type === 'PQ' ? 'square' : 'diamond';
+            const scale = type === 'PQ' ? 1.97 : 1; // Apply same scaling to PQ hover points
             
             traces.push(
                 {
                     x: [currentHoverPixel.linear.r],
-                    y: [func.encode(currentHoverPixel.linear.r)],
+                    y: [func.encode(currentHoverPixel.linear.r) * scale],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} R`,
@@ -1518,7 +1533,7 @@ function updateCombinedOETFGraph() {
                 },
                 {
                     x: [currentHoverPixel.linear.g],
-                    y: [func.encode(currentHoverPixel.linear.g)],
+                    y: [func.encode(currentHoverPixel.linear.g) * scale],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} G`,
@@ -1528,7 +1543,7 @@ function updateCombinedOETFGraph() {
                 },
                 {
                     x: [currentHoverPixel.linear.b],
-                    y: [func.encode(currentHoverPixel.linear.b)],
+                    y: [func.encode(currentHoverPixel.linear.b) * scale],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} B`,
