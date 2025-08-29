@@ -33,7 +33,7 @@ export const HLG = {
         // No normalization - the formulas expect linear where 1.0 = reference white
         if (linear <= 1/12) {
             // Square root portion for linear ≤ 1/12
-            return Math.sqrt(3 * linear);
+            return 0.5 * Math.sqrt(3 * linear);
         } else {
             // Logarithmic portion for linear > 1/12
             // Clamp to avoid log of negative numbers
@@ -55,7 +55,7 @@ export const HLG = {
         // The threshold is at sqrt(3 * 1/12) = 0.5
         if (hlg <= 0.5) {
             // Inverse of square root portion
-            return Math.pow(hlg, 2) / 3;
+            return Math.pow(hlg / 0.5, 2) / 3.0;
         } else {
             // Inverse of logarithmic portion
             return (Math.exp((hlg - c) / a) + b) / 12;
