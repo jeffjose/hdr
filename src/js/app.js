@@ -394,17 +394,19 @@ function initializeCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
-      dtick: 0.2
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
     },
     yaxis: {
       title: "Output Brightness (cd/m²)",
       gridcolor: "#333",
       zerolinecolor: "#555",
-      type: "log",
-      range: [-1, 4], // Log scale: 10^-1 (0.1) to 10^4 (10000)
-      tickmode: "array",
-      tickvals: [0.1, 1, 10, 100, 1000, 10000],
-      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+      type: "linear",
+      range: [0, 10000],
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
     },
     showlegend: true,
     legend: {
@@ -1565,7 +1567,9 @@ function updateCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
-      dtick: 0.2
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
     },
     yaxis: {
       title: "Output Brightness (cd/m²)",
@@ -1573,7 +1577,9 @@ function updateCombinedEOTFGraph() {
       zerolinecolor: "#555",
       type: "linear",
       range: [0, 10000],
-      dtick: 2000
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
     },
     yaxis2: {
       // title: 'Histogram (%)',
