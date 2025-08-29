@@ -394,7 +394,6 @@ function initializeCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
-      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -405,7 +404,6 @@ function initializeCombinedEOTFGraph() {
       zerolinecolor: "#555",
       type: "linear",
       range: [0, 10000],
-      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -975,7 +973,6 @@ function updateOETFGraphs() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1],
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis: {
@@ -983,7 +980,6 @@ function updateOETFGraphs() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1],
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis2: {
@@ -1058,13 +1054,11 @@ function updateOETFGraphs() {
       ...darkLayout.xaxis,
       title: "Linear Light Input (0=black, 1=100 nits, 100=10,000 nits)",
       range: [0, 6], // Default view 0-600 nits, can zoom out to see full 10,000 nits
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis: {
       ...darkLayout.yaxis,
       range: [0, 1.05],
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis2: {
@@ -1113,13 +1107,11 @@ function updateOETFGraphs() {
       title: "Linear Light Input (0=black, 1=ref white, 12=peak)",
       range: [0, 6],
       // dtick removed - auto-adjusts with zoom
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis: {
       ...darkLayout.yaxis,
       range: [0, 1.05],
-      rangemode: "tozero",
       fixedrange: false
     },
     yaxis2: {
@@ -1569,7 +1561,6 @@ function updateCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
-      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -1580,7 +1571,6 @@ function updateCombinedEOTFGraph() {
       zerolinecolor: "#555",
       type: "linear",
       range: [0, 10000],
-      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -1616,7 +1606,52 @@ function updateCombinedEOTFGraph() {
     }
   };
 
-  Plotly.react("combinedGraph", traces, layout);
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    scrollZoom: true, // Enable scroll zoom
+    doubleClick: "reset", // Double-click resets to original view
+    modeBarButtonsToRemove: ["pan2d", "select2d", "lasso2d"], // Remove pan tool but keep zoom
+    modeBarButtonsToAdd: [],
+    displaylogo: false
+  };
+
+  Plotly.react("combinedGraph", traces, layout, config).then(function () {
+    // Add event handler to constrain axis ranges (prevent panning below 0)
+    const graphDiv = document.getElementById("combinedGraph");
+    graphDiv.on("plotly_relayout", function (eventdata) {
+      let update = {};
+      let needsUpdate = false;
+
+      // Check and constrain x-axis
+      if (
+        eventdata["xaxis.range[0]"] !== undefined &&
+        eventdata["xaxis.range[0]"] < 0
+      ) {
+        update["xaxis.range[0]"] = 0;
+        if (eventdata["xaxis.range[1]"] !== undefined) {
+          update["xaxis.range[1]"] = eventdata["xaxis.range[1]"];
+        }
+        needsUpdate = true;
+      }
+
+      // Check and constrain y-axis
+      if (
+        eventdata["yaxis.range[0]"] !== undefined &&
+        eventdata["yaxis.range[0]"] < 0
+      ) {
+        update["yaxis.range[0]"] = 0;
+        if (eventdata["yaxis.range[1]"] !== undefined) {
+          update["yaxis.range[1]"] = eventdata["yaxis.range[1]"];
+        }
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        Plotly.relayout("combinedGraph", update);
+      }
+    });
+  });
 }
 
 function updateCombinedOETFGraph() {
