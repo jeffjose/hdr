@@ -105,7 +105,7 @@ let canvas = null;
 let ctx = null;
 let currentHoverPixel = null;
 let viewMode = 'combined'; // 'separate' or 'combined'
-let transferMode = 'eotf'; // 'oetf' or 'eotf'
+let transferMode = localStorage.getItem('transferMode') || 'eotf'; // 'oetf' or 'eotf'
 let peakBrightness = 1000; // Peak brightness in nits
 let histogram = null; // Store histogram data
 let updateGraphTimeout = null; // For debouncing graph updates
@@ -269,7 +269,7 @@ function initializeOETFGraphs() {
 }
 
 function initializeSeparateOETFGraphs() {
-    const sdrLayout = {
+    const baseLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { 
@@ -279,16 +279,15 @@ function initializeSeparateOETFGraphs() {
         },
         margin: { t: 30, r: 30, b: 60, l: 60 },
         xaxis: {
-            title: 'Linear Light Input (0=black, 1=SDR white)',
+            title: 'Scene Light Intensity (Linear)',
             gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1]
+            zerolinecolor: '#555'
         },
         yaxis: {
-            title: 'Encoded Signal Output',
+            title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 1.05]
         },
         showlegend: true,
         legend: {
@@ -313,73 +312,80 @@ function initializeSeparateOETFGraphs() {
         modeBarButtonsToRemove: ['toImage']
     };
     
-    // Generate transfer curves
-    const numPoints = 100; // Reduced for better performance
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    const numPoints = 200;
     
-    // sRGB graph (SDR only)
-    const srgbLayout = {...sdrLayout, title: 'sRGB OETF (100 nits SDR)'};
-    const srgbCurve = linearValues.map(v => TransferFunctions.sRGB.encode(v));
+    // sRGB: Can only encode up to 1.0 (100 nits SDR)
+    const srgbLayout = {
+        ...baseLayout,
+        title: 'sRGB OETF (SDR only)',
+        xaxis: {
+            ...baseLayout.xaxis,
+            title: 'Scene Light (0=black, 1=100 nits)',
+            range: [0, 2],
+            dtick: 0.5
+        }
+    };
+    const srgbX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 2);
+    const srgbY = srgbX.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0); // Clips at 1
+    
     Plotly.newPlot('srgbGraph', [{
-        x: linearValues,
-        y: srgbCurve,
+        x: srgbX,
+        y: srgbY,
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
         line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Scene: %{x:.2f} (≈%{text})<br>Signal: %{y:.3f}<extra></extra>',
+        text: srgbX.map(v => `${(v * 100).toFixed(0)} nits`)
     }], srgbLayout, config);
     
-    // PQ graph (HDR - extends to 2.5x SDR)
+    // PQ: Can encode up to 10,000 nits (100x SDR)
     const pqLayout = {
-        ...sdrLayout,
+        ...baseLayout,
         title: 'PQ OETF (ST.2084)',
         xaxis: {
-            ...sdrLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
-            range: [0, 2.5]
-        },
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [0, 1.2]
+            ...baseLayout.xaxis,
+            title: 'Scene Light (0=black, 1=100 nits, 100=10k nits)',
+            range: [0, 100],
+            dtick: 20
         }
     };
-    const pqLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 2.5);
-    const pqCurve = pqLinearValues.map(v => TransferFunctions.PQ.encode(v));
+    const pqX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
+    const pqY = pqX.map(v => TransferFunctions.PQ.encode(v));
+    
     Plotly.newPlot('pqGraph', [{
-        x: pqLinearValues,
-        y: pqCurve,
+        x: pqX,
+        y: pqY,
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
         line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Scene: %{x:.1f} (≈%{text})<br>Signal: %{y:.3f}<extra></extra>',
+        text: pqX.map(v => `${(v * 100).toFixed(0)} nits`)
     }], pqLayout, config);
     
-    // HLG graph (HDR - extends to 5x SDR)
+    // HLG: Relative encoding, can handle HDR
     const hlgLayout = {
-        ...sdrLayout,
+        ...baseLayout,
         title: 'HLG OETF (BT.2100)',
         xaxis: {
-            ...sdrLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
-            range: [0, 5]
-        },
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [0, 1.3]
+            ...baseLayout.xaxis,
+            title: 'Scene Light (0=black, 1=ref white, 12=12x ref)',
+            range: [0, 12],
+            dtick: 2
         }
     };
-    const hlgLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 5);
-    const hlgCurve = hlgLinearValues.map(v => TransferFunctions.HLG.encode(v));
+    const hlgX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
+    const hlgY = hlgX.map(v => TransferFunctions.HLG.encode(v));
+    
     Plotly.newPlot('hlgGraph', [{
-        x: hlgLinearValues,
-        y: hlgCurve,
+        x: hlgX,
+        y: hlgY,
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
         line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Scene: %{x:.1f}x ref<br>Signal: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
 }
 
@@ -494,19 +500,19 @@ function initializeCombinedGraph() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 40, r: 30, b: 60, l: 60 },
+        margin: { t: 40, r: 30, b: 60, l: 70 },
         xaxis: {
-            title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
+            title: 'Scene Light Intensity (Linear, 1 = 100 nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 3],
-            dtick: 0.5
+            range: [0, 10],
+            dtick: 1
         },
         yaxis: {
-            title: 'Encoded Signal Output',
+            title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1.3]
+            range: [0, 1.05]
         },
         showlegend: true,
         legend: {
@@ -522,7 +528,24 @@ function initializeCombinedGraph() {
                 color: 'white'
             }
         },
-        title: 'OETF (Camera Encoding Curves)'
+        title: 'OETF (Camera Encoding Curves)',
+        annotations: [
+            {
+                x: 1,
+                y: 1.0,
+                xref: 'x',
+                yref: 'y',
+                text: 'SDR Peak<br>(100 nits)',
+                showarrow: true,
+                arrowhead: 2,
+                arrowsize: 1,
+                arrowwidth: 1,
+                arrowcolor: '#666',
+                ax: 30,
+                ay: -30,
+                font: { size: 10, color: '#999' }
+            }
+        ]
     };
     
     const config = {
@@ -530,47 +553,47 @@ function initializeCombinedGraph() {
         displayModeBar: false
     };
     
-    const numPoints = 100; // Reduced for better performance
-    // Use extended range for combined view to show HDR capabilities
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
+    const numPoints = 200;
+    const xRange = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 10);
     
-    // Filter sRGB values to only show up to x=1 (SDR range)
-    const srgbLinearValues = linearValues.filter(v => v <= 1);
+    // sRGB: Clips at 1.0 (can't encode HDR)
+    const srgbY = xRange.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+    
+    // PQ: Absolute encoding
+    const pqY = xRange.map(v => TransferFunctions.PQ.encode(v));
+    
+    // HLG: Relative encoding
+    const hlgY = xRange.map(v => TransferFunctions.HLG.encode(v));
     
     const traces = [
         {
-            x: srgbLinearValues,
-            y: srgbLinearValues.map(v => TransferFunctions.sRGB.encode(v)),
+            x: xRange,
+            y: srgbY,
             type: 'scatter',
             mode: 'lines',
-            name: 'sRGB',
+            name: 'sRGB (SDR only)',
             line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            hovertemplate: 'sRGB<br>Scene: %{x:.1f} (%{text})<br>Signal: %{y:.3f}<extra></extra>',
+            text: xRange.map(v => `${(v * 100).toFixed(0)} nits`)
         },
         {
-            x: linearValues,
-            // PQ is absolute: 0.51 at 100 nits, 1.0 at 10,000 nits
-            // For visual comparison, we scale it up by ~2x
-            y: linearValues.map(v => {
-                const pqValue = TransferFunctions.PQ.encode(v);
-                return pqValue * 1.97; // Scale to visually match sRGB/HLG at x=1
-            }),
+            x: xRange,
+            y: pqY,
             type: 'scatter',
             mode: 'lines',
-            name: 'PQ (scaled 2x)',
+            name: 'PQ (ST.2084)',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'PQ<br>Input: %{x:.3f} (%{text})<br>Actual: %{customdata:.3f}<br>Scaled: %{y:.3f}<extra></extra>',
-            text: linearValues.map(v => `${(v * 100).toFixed(0)} nits`),
-            customdata: linearValues.map(v => TransferFunctions.PQ.encode(v))
+            hovertemplate: 'PQ<br>Scene: %{x:.1f} (%{text})<br>Signal: %{y:.3f}<extra></extra>',
+            text: xRange.map(v => `${(v * 100).toFixed(0)} nits`)
         },
         {
-            x: linearValues,
-            y: linearValues.map(v => TransferFunctions.HLG.encode(v)),
+            x: xRange,
+            y: hlgY,
             type: 'scatter',
             mode: 'lines',
-            name: 'HLG',
+            name: 'HLG (BT.2100)',
             line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            hovertemplate: 'HLG<br>Scene: %{x:.1f}x ref<br>Signal: %{y:.3f}<extra></extra>'
         }
     ];
     
@@ -1451,9 +1474,8 @@ function updateCombinedOETFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 100; // Reduced for better performance
-    // Use extended range for combined view to show HDR capabilities
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
+    const numPoints = 200;
+    const xRange = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 10);
     
     const traces = [];
     
@@ -1470,43 +1492,44 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // Filter sRGB values to only show up to x=1 (SDR range)
-        const srgbLinearValues = linearValues.filter(v => v <= 1);
+        // sRGB: Clips at 1.0 (can't encode HDR)
+        const srgbY = xRange.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+        
+        // PQ: Absolute encoding
+        const pqY = xRange.map(v => TransferFunctions.PQ.encode(v));
+        
+        // HLG: Relative encoding
+        const hlgY = xRange.map(v => TransferFunctions.HLG.encode(v));
         
         traces.push(
             {
-                x: srgbLinearValues,
-                y: srgbLinearValues.map(v => TransferFunctions.sRGB.encode(v)),
+                x: xRange,
+                y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'sRGB',
+                name: 'sRGB (SDR only)',
                 line: { color: '#00bcd4', width: 2 },
-                hovertemplate: 'sRGB<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+                hovertemplate: 'sRGB<br>Scene: %{x:.1f} (%{text})<br>Signal: %{y:.3f}<extra></extra>',
+                text: xRange.map(v => `${(v * 100).toFixed(0)} nits`)
             },
             {
-                x: linearValues,
-                // PQ is absolute: 0.51 at 100 nits, 1.0 at 10,000 nits
-                // For visual comparison, we scale it up by ~2x
-                y: linearValues.map(v => {
-                    const pqValue = TransferFunctions.PQ.encode(v);
-                    return pqValue * 1.97; // Scale to visually match sRGB/HLG at x=1
-                }),
+                x: xRange,
+                y: pqY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'PQ (scaled 2x)',
+                name: 'PQ (ST.2084)',
                 line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'PQ<br>Input: %{x:.3f} (%{text})<br>Actual: %{customdata:.3f}<br>Scaled: %{y:.3f}<extra></extra>',
-                text: linearValues.map(v => `${(v * 100).toFixed(0)} nits`),
-                customdata: linearValues.map(v => TransferFunctions.PQ.encode(v))
+                hovertemplate: 'PQ<br>Scene: %{x:.1f} (%{text})<br>Signal: %{y:.3f}<extra></extra>',
+                text: xRange.map(v => `${(v * 100).toFixed(0)} nits`)
             },
             {
-                x: linearValues,
-                y: linearValues.map(v => TransferFunctions.HLG.encode(v)),
+                x: xRange,
+                y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'HLG',
+                name: 'HLG (BT.2100)',
                 line: { color: '#9c27b0', width: 2 },
-                hovertemplate: 'HLG<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+                hovertemplate: 'HLG<br>Scene: %{x:.1f}x ref<br>Signal: %{y:.3f}<extra></extra>'
             }
         );
     }
@@ -1518,12 +1541,17 @@ function updateCombinedOETFGraph() {
                          type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
             const symbol = type === 'sRGB' ? 'circle' :
                           type === 'PQ' ? 'square' : 'diamond';
-            const scale = type === 'PQ' ? 1.97 : 1; // Apply same scaling to PQ hover points
+            
+            // For sRGB, only show if values are <= 1
+            if (type === 'sRGB' && currentHoverPixel.linear.r > 1 && 
+                currentHoverPixel.linear.g > 1 && currentHoverPixel.linear.b > 1) {
+                return;
+            }
             
             traces.push(
                 {
                     x: [currentHoverPixel.linear.r],
-                    y: [func.encode(currentHoverPixel.linear.r) * scale],
+                    y: [type === 'sRGB' && currentHoverPixel.linear.r > 1 ? 1.0 : func.encode(currentHoverPixel.linear.r)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} R`,
@@ -1533,7 +1561,7 @@ function updateCombinedOETFGraph() {
                 },
                 {
                     x: [currentHoverPixel.linear.g],
-                    y: [func.encode(currentHoverPixel.linear.g) * scale],
+                    y: [type === 'sRGB' && currentHoverPixel.linear.g > 1 ? 1.0 : func.encode(currentHoverPixel.linear.g)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} G`,
@@ -1543,7 +1571,7 @@ function updateCombinedOETFGraph() {
                 },
                 {
                     x: [currentHoverPixel.linear.b],
-                    y: [func.encode(currentHoverPixel.linear.b) * scale],
+                    y: [type === 'sRGB' && currentHoverPixel.linear.b > 1 ? 1.0 : func.encode(currentHoverPixel.linear.b)],
                     type: 'scatter',
                     mode: 'markers',
                     name: `Hover ${type} B`,
@@ -1565,17 +1593,17 @@ function updateCombinedOETFGraph() {
         },
         margin: { t: 40, r: 50, b: 60, l: 60 },
         xaxis: {
-            title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
+            title: 'Scene Light Intensity (Linear, 1 = 100 nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 3],
-            dtick: 0.5
+            range: [0, 10],
+            dtick: 1
         },
         yaxis: {
-            title: 'Encoded Signal Output',
+            title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1.3]
+            range: [0, 1.05]
         },
         yaxis2: {
             // title: 'Histogram (%)',
@@ -1997,6 +2025,22 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas = document.getElementById('canvas');
     ctx = canvas.getContext('2d');
     
+    // Set initial UI state based on saved transfer mode
+    const oetfMode = document.getElementById('oetfMode');
+    const eotfMode = document.getElementById('eotfMode');
+    
+    if (transferMode === 'oetf') {
+        oetfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
+        oetfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
+        eotfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
+        eotfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
+    } else {
+        eotfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
+        eotfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
+        oetfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
+        oetfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
+    }
+    
     initializeGraphs();
     
     // Add histogram visualization controls
@@ -2273,6 +2317,7 @@ document.addEventListener('DOMContentLoaded', function() {
     oetfMode.addEventListener('click', function() {
         console.log('[DEBUG] OETF mode clicked');
         transferMode = 'oetf';
+        localStorage.setItem('transferMode', 'oetf');
         oetfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
         oetfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
         eotfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
@@ -2288,6 +2333,7 @@ document.addEventListener('DOMContentLoaded', function() {
     eotfMode.addEventListener('click', function() {
         console.log('[DEBUG] EOTF mode clicked');
         transferMode = 'eotf';
+        localStorage.setItem('transferMode', 'eotf');
         eotfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
         eotfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
         oetfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
