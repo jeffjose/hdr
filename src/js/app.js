@@ -529,7 +529,6 @@ function initializeCombinedGraph() {
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
-        dragmode: false,  // Disable dragging on the plot area
         showlegend: true,
         legend: {
             x: 0.02,
@@ -1641,7 +1640,6 @@ function updateCombinedOETFGraph() {
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
-        dragmode: false,  // Disable dragging on the plot area
         yaxis2: {
             // title: 'Histogram (%)',
             // titlefont: { color: '#888' },
@@ -1674,9 +1672,9 @@ function updateCombinedOETFGraph() {
     const config = {
         responsive: true,
         displayModeBar: true,
-        scrollZoom: false,  // Disable scroll zoom
+        scrollZoom: true,  // Enable scroll zoom
         doubleClick: 'reset',  // Double-click resets to original view
-        modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d', 'zoom2d'],  // Remove pan and zoom tools
+        modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],  // Remove pan tool but keep zoom
         modeBarButtonsToAdd: [],
         displaylogo: false
     };
