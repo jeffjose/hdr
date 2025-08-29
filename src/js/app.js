@@ -1571,11 +1571,9 @@ function updateCombinedEOTFGraph() {
       title: "Output Brightness (cd/m²)",
       gridcolor: "#333",
       zerolinecolor: "#555",
-      type: "log",
-      range: [-1, 4], // Log scale: 10^-1 (0.1) to 10^4 (10000)
-      tickmode: "array",
-      tickvals: [0.1, 1, 10, 100, 1000, 10000],
-      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+      type: "linear",
+      range: [0, 10000],
+      dtick: 2000
     },
     yaxis2: {
       // title: 'Histogram (%)',
