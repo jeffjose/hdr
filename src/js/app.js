@@ -60,51 +60,60 @@ const TransferFunctions = {
     // HLG (Hybrid Log-Gamma) - BT.2100
     HLG: {
         // HLG OETF (Opto-Electronic Transfer Function)
-        // This uses the normalized 0-1 input range version from ITU-R BT.2100
-        // For extended range (0-12), the input is first normalized
+        // Based on ITU-R BT.2100-2
         encode: (linear) => {
             const a = 0.17883277;
-            const b = 0.28466892;
-            const c = 0.55991073;
-            
+            const b = 1 - 4 * a; // 0.28466892
+            const c = 0.5 - a * Math.log(4 * a); // 0.55991073
+
             if (linear <= 0) return 0;
-            
-            // For the 0-12 extended range version (as per ARIB STD-B67)
-            // the threshold is at E = 1
-            if (linear <= 1) {
-                // Square root portion for dark values
-                return Math.sqrt(linear / 3);
+
+            // The HLG formula is specified for E, where E is normalized to 1.0 for peak display luminance.
+            // The graph's `linear` input has 1.0 as 100 nits (SDR ref white).
+            // We must convert it to the normalized E value.
+            const E = (linear * 100) / peakBrightness;
+
+            if (E <= 1 / 12) {
+                return Math.sqrt(3) * Math.pow(E, 0.5);
             } else {
-                // Logarithmic portion for bright values
-                // This handles values > 1 (HDR range)
-                return a * Math.log(linear - b) + c;
+                return a * Math.log(12 * E - b) + c;
             }
         },
-        // HLG inverse OETF (for EOTF graphs)
+        // HLG inverse OETF (EOTF uses this)
         decode: (hlg) => {
             const a = 0.17883277;
-            const b = 0.28466892;
-            const c = 0.55991073;
+            const b = 1 - 4 * a; // 0.28466892
+            const c = 0.5 - a * Math.log(4 * a); // 0.55991073
+
+            if (hlg < 0) return 0;
             
-            if (hlg <= 0) return 0;
-            if (hlg <= 0.5) {
-                // Inverse of square root portion
-                return 3 * Math.pow(hlg, 2);
+            let E;
+            if (hlg <= 0.5) { // Signal 0.5 corresponds to E = 1/12
+                E = Math.pow(hlg, 2) / 3;
             } else {
-                // Inverse of logarithmic portion
-                return Math.exp((hlg - c) / a) + b;
+                E = (Math.exp((hlg - c) / a) + b) / 12;
             }
+
+            // The formula gives us E, which is normalized to peak brightness.
+            // We must convert back to relative linear where 1.0 = 100 nits.
+            return (E * peakBrightness) / 100;
         },
-        // For inverse EOTF (brightness -> signal), we need special handling
+        // This function is kept for potential future use, but the primary decoding
+        // for the EOTF graph is now handled by the main `decode` function.
         inverseEOTF: (normalizedBrightness, peakNits = 1000) => {
-            // HLG EOTF: Display_light = (OETF^-1(signal))^1.2
-            // So for inverse: signal = OETF(Display_light^(1/1.2))
+            // HLG EOTF: Display_light = (OETF^-1(signal))^gamma
+            // Inverse: signal = OETF(Display_light^(1/gamma))
             
-            // First, undo the system gamma (1.2) that the display applies
+            // First, undo the system gamma (typically 1.2)
             const sceneLight = Math.pow(normalizedBrightness, 1/1.2);
             
             // Then encode using HLG OETF to get the signal
-            return TransferFunctions.HLG.encode(sceneLight);
+            // Note: This requires the `encode` function to be aware of the peakNits context.
+            const originalPeak = peakBrightness;
+            peakBrightness = peakNits; // Temporarily set context for encode
+            const signal = TransferFunctions.HLG.encode(sceneLight * (peakNits / 100));
+            peakBrightness = originalPeak; // Restore context
+            return signal;
         }
     }
 };
@@ -1064,7 +1073,7 @@ function updateOETFGraphs() {
     if (showCurves) {
         hlgTraces.push({
             x: hlgLinearValues,
-            y: hlgLinearValues.map(v => Math.min(1.0, TransferFunctions.HLG.encode(v))),
+            y: hlgLinearValues.map(v => TransferFunctions.HLG.encode(v)),
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
@@ -1527,9 +1536,7 @@ function updateCombinedOETFGraph() {
         // HLG: Hybrid log-gamma, designed for HDR
         const hlgY = xLinear.map(v => {
             // HLG can handle extended range
-            const encoded = TransferFunctions.HLG.encode(v);
-            // Cap at 1.0 for display
-            return Math.min(1.0, encoded);
+            return TransferFunctions.HLG.encode(v);
         });
         
         // PQ: Perceptual Quantizer, maps 0-10000 nits to 0-1
