@@ -14,6 +14,8 @@ export const sRGB = {
     encode: (linear) => {
         if (linear <= 0.0031308) {
             return 12.92 * linear;
+        } else if (linear >= 1) {
+            return 1;  // Clamp to 1 for SDR white
         } else {
             return 1.055 * Math.pow(linear, 1/2.4) - 0.055;
         }
