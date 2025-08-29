@@ -394,6 +394,7 @@ function initializeCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
+      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -404,6 +405,7 @@ function initializeCombinedEOTFGraph() {
       zerolinecolor: "#555",
       type: "linear",
       range: [0, 10000],
+      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -1567,6 +1569,7 @@ function updateCombinedEOTFGraph() {
       gridcolor: "#333",
       zerolinecolor: "#555",
       range: [0, 1.05],
+      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
@@ -1577,6 +1580,7 @@ function updateCombinedEOTFGraph() {
       zerolinecolor: "#555",
       type: "linear",
       range: [0, 10000],
+      rangemode: "tozero",
       // dtick removed - Plotly will auto-adjust based on zoom
       autorange: false,
       fixedrange: false // Allow zooming via axis drag
