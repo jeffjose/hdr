@@ -573,7 +573,7 @@ function initializeCombinedGraph() {
             y: srgbY,
             type: 'scatter',
             mode: 'lines',
-            name: 'SDR gamma curve',
+            name: 'sRGB',
             line: { color: '#ff4444', width: 2 },
             hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
         },
@@ -582,9 +582,19 @@ function initializeCombinedGraph() {
             y: hlgY,
             type: 'scatter',
             mode: 'lines',
-            name: 'Hybrid log-gamma',
+            name: 'HLG',
             line: { color: '#4444ff', width: 2 },
             hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
+        },
+        {
+            x: xLinear,
+            y: pqY,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'PQ (ST.2084)',
+            line: { color: '#44ff44', width: 2 },
+            hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
+            text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
         }
     ];
     
@@ -1490,13 +1500,16 @@ function updateCombinedOETFGraph() {
         // HLG: Can encode the full range
         const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
         
+        // PQ: Absolute encoding
+        const pqY = xLinear.map(v => TransferFunctions.PQ.encode(v));
+        
         traces.push(
             {
                 x: xLinear,
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'SDR gamma curve',
+                name: 'sRGB',
                 line: { color: '#ff4444', width: 2 },
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
@@ -1505,18 +1518,30 @@ function updateCombinedOETFGraph() {
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Hybrid log-gamma',
+                name: 'HLG',
                 line: { color: '#4444ff', width: 2 },
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
+            },
+            {
+                x: xLinear,
+                y: pqY,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'PQ (ST.2084)',
+                line: { color: '#44ff44', width: 2 },
+                hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
+                text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
             }
         );
     }
     
     // Add hover pixel if exists
     if (currentHoverPixel) {
-        ['sRGB', 'HLG'].forEach((type) => {
-            const func = type === 'sRGB' ? TransferFunctions.sRGB : TransferFunctions.HLG;
-            const symbol = type === 'sRGB' ? 'circle' : 'diamond';
+        ['sRGB', 'HLG', 'PQ'].forEach((type) => {
+            const func = type === 'sRGB' ? TransferFunctions.sRGB : 
+                         type === 'HLG' ? TransferFunctions.HLG : TransferFunctions.PQ;
+            const symbol = type === 'sRGB' ? 'circle' : 
+                           type === 'HLG' ? 'diamond' : 'square';
             
             traces.push(
                 {
