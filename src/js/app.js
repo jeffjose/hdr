@@ -2102,8 +2102,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const combinedView = document.getElementById('combinedView');
     const graphsContainer = document.getElementById('graphsContainer');
     const combinedGraph = document.getElementById('combinedGraph');
-    const oetfMode = document.getElementById('oetfMode');
-    const eotfMode = document.getElementById('eotfMode');
     const peakBrightnessSelect = document.getElementById('peakBrightness');
     
     // Load Image dropdown functionality
