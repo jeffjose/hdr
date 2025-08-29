@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HDR Toggle Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #222; color: #eee; }
+        canvas { border: 1px solid #555; margin: 10px; }
+        label { display: block; margin: 10px 0; }
+        .info { margin: 10px 0; padding: 10px; background: #333; }
+    </style>
+</head>
+<body>
+    <h2>HDR Toggle Test</h2>
+    <label>
+        <input type="checkbox" id="hdrToggle"> Enable HDR Mode
+    </label>
+    <div class="info" id="info">Ready to test</div>
+    <canvas id="testCanvas" width="256" height="256"></canvas>
+    
+    <script type="module">
+        // Import transfer functions
+        import { sRGB } from './src/js/srgb.js';
+        import { PQ } from './src/js/pq.js';
+        
+        const canvas = document.getElementById('testCanvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+        const hdrToggle = document.getElementById('hdrToggle');
+        
+        function drawGradient(hdrMode) {
+            // Draw a simple gradient
+            const gradient = ctx.createLinearGradient(0, 0, 256, 0);
+            gradient.addColorStop(0, 'rgb(0, 0, 0)');
+            gradient.addColorStop(1, 'rgb(255, 255, 255)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 256, 256);
+            
+            if (hdrMode) {
+                const imgData = ctx.getImageData(0, 0, 256, 256);
+                const data = imgData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    // Convert sRGB to linear
+                    let r = sRGB.decode(data[i] / 255);
+                    let g = sRGB.decode(data[i + 1] / 255);
+                    let b = sRGB.decode(data[i + 2] / 255);
+                    
+                    // Apply PQ encoding
+                    r = PQ.encode(r);
+                    g = PQ.encode(g);
+                    b = PQ.encode(b);
+                    
+                    // Convert back to 0-255
+                    data[i] = Math.round(r * 255);
+                    data[i + 1] = Math.round(g * 255);
+                    data[i + 2] = Math.round(b * 255);
+                }
+                
+                ctx.putImageData(imgData, 0, 0);
+                info.textContent = 'HDR Mode: ON - PQ encoding applied';
+            } else {
+                info.textContent = 'HDR Mode: OFF - Standard sRGB';
+            }
+        }
+        
+        hdrToggle.addEventListener('change', function() {
+            drawGradient(this.checked);
+        });
+        
+        // Initial draw
+        drawGradient(false);
+    </script>
+</body>
+</html>

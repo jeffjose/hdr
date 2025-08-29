@@ -28,6 +28,7 @@ let peakBrightness = 1000; // Peak brightness in nits
 let histogram = null; // Store histogram data
 let updateGraphTimeout = null; // For debouncing graph updates
 let lastUpdateTime = 0; // For throttling
+let hdrMode = false; // HDR encoding toggle state
 
 // Initialize graphs
 function initializeGraphs() {
@@ -1487,9 +1488,15 @@ function updateCombinedOETFGraph() {
             const symbol = type === 'sRGB' ? 'circle' : 
                            type === 'HLG' ? 'diamond' : 'square';
             
+            // PQ curve uses different x-scale (0-100 instead of 0-12)
+            // Since linear values are in units where 1.0 = 100 nits, no scaling needed for PQ
+            const xR = currentHoverPixel.linear.r;
+            const xG = currentHoverPixel.linear.g;
+            const xB = currentHoverPixel.linear.b;
+            
             traces.push(
                 {
-                    x: [currentHoverPixel.linear.r],
+                    x: [xR],
                     y: [type === 'sRGB' && currentHoverPixel.linear.r > 1 ? 1.0 : func.encode(currentHoverPixel.linear.r)],
                     type: 'scatter',
                     mode: 'markers',
@@ -1499,7 +1506,7 @@ function updateCombinedOETFGraph() {
                     showlegend: false
                 },
                 {
-                    x: [currentHoverPixel.linear.g],
+                    x: [xG],
                     y: [type === 'sRGB' && currentHoverPixel.linear.g > 1 ? 1.0 : func.encode(currentHoverPixel.linear.g)],
                     type: 'scatter',
                     mode: 'markers',
@@ -1509,7 +1516,7 @@ function updateCombinedOETFGraph() {
                     showlegend: false
                 },
                 {
-                    x: [currentHoverPixel.linear.b],
+                    x: [xB],
                     y: [type === 'sRGB' && currentHoverPixel.linear.b > 1 ? 1.0 : func.encode(currentHoverPixel.linear.b)],
                     type: 'scatter',
                     mode: 'markers',
@@ -1621,6 +1628,38 @@ function updateCombinedOETFGraph() {
     });
 }
 
+// Apply HDR encoding to canvas pixels if HDR mode is enabled
+function applyHDREncoding() {
+    if (!hdrMode) return;
+    
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+        // Convert sRGB values (0-255) to linear (0-1)
+        let r = data[i] / 255;
+        let g = data[i + 1] / 255;
+        let b = data[i + 2] / 255;
+        
+        // Apply sRGB to linear conversion
+        r = TransferFunctions.sRGB.decode(r);
+        g = TransferFunctions.sRGB.decode(g);
+        b = TransferFunctions.sRGB.decode(b);
+        
+        // Apply PQ encoding (linear to PQ signal)
+        r = TransferFunctions.PQ.encode(r);
+        g = TransferFunctions.PQ.encode(g);
+        b = TransferFunctions.PQ.encode(b);
+        
+        // Convert back to 0-255 range
+        data[i] = Math.round(r * 255);
+        data[i + 1] = Math.round(g * 255);
+        data[i + 2] = Math.round(b * 255);
+    }
+    
+    ctx.putImageData(imgData, 0, 0);
+}
+
 // Generate synthetic test patterns
 function generateTestPattern(type) {
     const width = 512;
@@ -1701,13 +1740,16 @@ function generateTestPattern(type) {
             break;
     }
     
+    // Apply HDR encoding if enabled
+    applyHDREncoding();
+    
     // Convert canvas to image
     img.src = canvas.toDataURL();
     img.style.display = 'block';
     img.onload = function() {
         imageData = ctx.getImageData(0, 0, width, height);
         document.getElementById('imageInfo').innerHTML = `
-            <strong>Test Pattern:</strong> ${type}<br>
+            <strong>Test Pattern:</strong> ${type}${hdrMode ? ' (HDR)' : ''}<br>
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Synthetic
         `;
@@ -1880,13 +1922,16 @@ function generateSampleImage(type) {
             break;
     }
     
+    // Apply HDR encoding if enabled
+    applyHDREncoding();
+    
     // Convert canvas to image
     img.src = canvas.toDataURL();
     img.style.display = 'block';
     img.onload = function() {
         imageData = ctx.getImageData(0, 0, width, height);
         document.getElementById('imageInfo').innerHTML = `
-            <strong>Sample:</strong> ${type}<br>
+            <strong>Sample:</strong> ${type}${hdrMode ? ' (HDR)' : ''}<br>
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Generated
         `;
@@ -2080,6 +2125,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
     const showCurves = document.getElementById('showCurves');
     const showHistogram = document.getElementById('showHistogram');
+    const hdrToggle = document.getElementById('hdrToggle');
     const uploadedImage = document.getElementById('uploadedImage');
     const hoverIndicator = document.getElementById('hoverIndicator');
     const separateView = document.getElementById('separateView');
@@ -2207,6 +2253,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show/hide toggles
     showCurves.addEventListener('change', updateGraphs);
     showHistogram.addEventListener('change', updateGraphs);
+    
+    // HDR toggle
+    hdrToggle.addEventListener('change', function() {
+        hdrMode = this.checked;
+        // Re-generate current synthetic image if one is loaded
+        const imageInfo = document.getElementById('imageInfo').innerHTML;
+        if (imageInfo.includes('Test Pattern:') || imageInfo.includes('Sample:')) {
+            // Extract the type from the image info
+            const match = imageInfo.match(/<strong>(?:Test Pattern|Sample):<\/strong> (\w+)/);
+            if (match) {
+                const type = match[1].replace(' (HDR)', '');
+                if (imageInfo.includes('Test Pattern:')) {
+                    generateTestPattern(type);
+                } else {
+                    generateSampleImage(type);
+                }
+            }
+        }
+    });
     
     // Samples dropdown functionality
     const samplesTrigger = document.getElementById('samplesTrigger');
