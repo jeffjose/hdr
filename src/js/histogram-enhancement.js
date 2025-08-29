@@ -2,7 +2,7 @@
 
 // Global settings for histogram visualization
 let histogramVisualization = 'area'; // 'bars', 'line', 'area', 'step', 'curve'
-let histogramScale = 'log'; // 'linear', 'log', 'sqrt'
+// Using log scale only - removed scale selector
 
 // Helper function to create histogram trace with multiple visualization options
 function createHistogramTrace(histogram, scaleFactor = 0.3, baseColor = [255, 255, 255], transformFunc = null) {
@@ -22,11 +22,9 @@ function createHistogramTrace(histogram, scaleFactor = 0.3, baseColor = [255, 25
         
         let value = histogram.luminance[i] / maxHistValue;
         
-        // Apply scale transformation
-        if (histogramScale === 'log' && histogram.luminance[i] > 0) {
+        // Apply log scale transformation
+        if (histogram.luminance[i] > 0) {
             value = Math.log10(1 + value * 99) / 2; // Log scale with adjustable range
-        } else if (histogramScale === 'sqrt') {
-            value = Math.sqrt(value);
         }
         
         // Apply transfer function transformation if provided
@@ -207,29 +205,7 @@ function addHistogramControls() {
         vizSelect.appendChild(option);
     });
     
-    // Create scale selector (compact dropdown)
-    const scaleSelect = document.createElement('select');
-    scaleSelect.id = 'histogramScaleSelect';
-    scaleSelect.className = 'bg-dark-panel text-dark-text border border-dark-border px-1.5 py-0.5 rounded text-[10px] focus:outline-none focus:border-brand-blue';
-    scaleSelect.style.cssText = 'height: 24px; min-width: 45px;';
-    
-    const scaleOptions = [
-        { value: 'linear', text: 'Lin' },
-        { value: 'log', text: 'Log' },
-        { value: 'sqrt', text: 'Sqrt' }
-    ];
-    
-    scaleOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.text;
-        if (opt.value === histogramScale) {
-            option.selected = true;
-        }
-        scaleSelect.appendChild(option);
-    });
-    
-    // Add event listeners
+    // Add event listener for visualization type
     vizSelect.addEventListener('change', (e) => {
         histogramVisualization = e.target.value;
         if (typeof updateGraphs === 'function') {
@@ -237,16 +213,8 @@ function addHistogramControls() {
         }
     });
     
-    scaleSelect.addEventListener('change', (e) => {
-        histogramScale = e.target.value;
-        if (typeof updateGraphs === 'function') {
-            updateGraphs();
-        }
-    });
-    
-    // Assemble the controls
+    // Only add visualization type selector (scale is fixed to log)
     histogramControlsContainer.appendChild(vizSelect);
-    histogramControlsContainer.appendChild(scaleSelect);
     
     // Insert after the histogram toggle
     if (histogramToggle.parentNode) {
@@ -274,7 +242,6 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         createHistogramTrace,
         addHistogramControls,
-        histogramVisualization,
-        histogramScale
+        histogramVisualization
     };
 }
