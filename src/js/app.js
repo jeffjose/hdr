@@ -60,16 +60,24 @@ const TransferFunctions = {
     // HLG (Hybrid Log-Gamma) - BT.2100
     HLG: {
         // HLG OETF (Opto-Electronic Transfer Function)
+        // This uses the normalized 0-1 input range version from ITU-R BT.2100
+        // For extended range (0-12), the input is first normalized
         encode: (linear) => {
             const a = 0.17883277;
             const b = 0.28466892;
             const c = 0.55991073;
             
             if (linear <= 0) return 0;
-            if (linear <= 1/12) {
-                return Math.sqrt(3 * linear);
+            
+            // For the 0-12 extended range version (as per ARIB STD-B67)
+            // the threshold is at E = 1
+            if (linear <= 1) {
+                // Square root portion for dark values
+                return Math.sqrt(linear / 3);
             } else {
-                return a * Math.log(12 * linear - b) + c;
+                // Logarithmic portion for bright values
+                // This handles values > 1 (HDR range)
+                return a * Math.log(linear - b) + c;
             }
         },
         // HLG inverse OETF (for EOTF graphs)
@@ -80,9 +88,11 @@ const TransferFunctions = {
             
             if (hlg <= 0) return 0;
             if (hlg <= 0.5) {
-                return Math.pow(hlg, 2) / 3;
+                // Inverse of square root portion
+                return 3 * Math.pow(hlg, 2);
             } else {
-                return (Math.exp((hlg - c) / a) + b) / 12;
+                // Inverse of logarithmic portion
+                return Math.exp((hlg - c) / a) + b;
             }
         },
         // For inverse EOTF (brightness -> signal), we need special handling
@@ -1030,6 +1040,9 @@ function updateOETFGraphs() {
     // HLG
     const hlgTraces = [];
     
+    // Create extended linear range for HLG (0-12)
+    const hlgLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
+    
     // Add histogram for HLG
     if (showHistogram && histogram) {
         const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // No transform function
@@ -1042,8 +1055,8 @@ function updateOETFGraphs() {
     
     if (showCurves) {
         hlgTraces.push({
-            x: linearValues,
-            y: linearValues.map(v => TransferFunctions.HLG.encode(v)),
+            x: hlgLinearValues,
+            y: hlgLinearValues.map(v => Math.min(1.0, TransferFunctions.HLG.encode(v))),
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
@@ -1057,12 +1070,13 @@ function updateOETFGraphs() {
         title: 'HLG OETF (BT.2100)',
         xaxis: {
             ...darkLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
-            range: [0, 5]
+            title: 'Linear Light Input (0=black, 1=ref white, 12=peak)',
+            range: [0, 12],
+            dtick: 2
         },
         yaxis: {
             ...darkLayout.yaxis,
-            range: [0, 1.3]
+            range: [0, 1.05]
         },
         yaxis2: {
             ...darkLayout.yaxis2
@@ -1476,7 +1490,7 @@ function updateCombinedOETFGraph() {
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 200;
-    // Create linear points from 0 to 12 (relative intensity)
+    // Create linear points from 0 to 12 (relative intensity where 1.0 = 100 nits SDR)
     const xLinear = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
     
     const traces = [];
@@ -1494,14 +1508,30 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // sRGB: Clips at 1.0
-        const srgbY = xLinear.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+        // sRGB: Standard gamma curve, saturates at 1.0 since it's SDR
+        const srgbY = xLinear.map(v => {
+            if (v <= 1) {
+                return TransferFunctions.sRGB.encode(v);
+            } else {
+                // sRGB can't encode values > 1, so it clips
+                return 1.0;
+            }
+        });
         
-        // HLG: Can encode the full range
-        const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
+        // HLG: Hybrid log-gamma, designed for HDR
+        const hlgY = xLinear.map(v => {
+            // HLG can handle extended range
+            const encoded = TransferFunctions.HLG.encode(v);
+            // Cap at 1.0 for display
+            return Math.min(1.0, encoded);
+        });
         
-        // PQ: Absolute encoding
-        const pqY = xLinear.map(v => TransferFunctions.PQ.encode(v));
+        // PQ: Perceptual Quantizer, maps 0-10000 nits to 0-1
+        const pqY = xLinear.map(v => {
+            // v is in units where 1.0 = 100 nits
+            // PQ expects input where 1.0 = 100 nits
+            return TransferFunctions.PQ.encode(v);
+        });
         
         traces.push(
             {
@@ -1509,8 +1539,8 @@ function updateCombinedOETFGraph() {
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'sRGB',
-                line: { color: '#00bcd4', width: 2 },
+                name: 'SDR gamma curve',
+                line: { color: '#ff0000', width: 2 },
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1518,8 +1548,8 @@ function updateCombinedOETFGraph() {
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'HLG',
-                line: { color: '#9c27b0', width: 2 },
+                name: 'Hybrid log-gamma',
+                line: { color: '#0000ff', width: 2 },
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1528,7 +1558,7 @@ function updateCombinedOETFGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
-                line: { color: '#ff9800', width: 2 },
+                line: { color: '#00ff00', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
                 text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
             }
