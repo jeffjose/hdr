@@ -451,7 +451,7 @@ function initializeCombinedGraph() {
                 color: 'white'
             }
         },
-        title: 'OETF (Camera Encoding Curves)',
+        title: 'OETF (Opto-Electronic Transfer Functions)',
         annotations: [
             {
                 x: 1,
@@ -913,6 +913,9 @@ function updateOETFGraphs() {
     // PQ
     const pqTraces = [];
     
+    // Create extended linear range for PQ (0-100, where 100 = 10,000 nits)
+    const pqLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
+    
     // Add histogram for PQ
     if (showHistogram && histogram) {
         const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // No transform function
@@ -925,13 +928,14 @@ function updateOETFGraphs() {
     
     if (showCurves) {
         pqTraces.push({
-            x: linearValues,
-            y: linearValues.map(v => TransferFunctions.PQ.encode(v)),
+            x: pqLinearValues,
+            y: pqLinearValues.map(v => TransferFunctions.PQ.encode(v)),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
+            hovertemplate: 'X: %{x:.3f} (~%{text})<br>Y: %{y:.3f}<extra></extra>',
+            text: pqLinearValues.map(v => `${(v * 100).toFixed(0)} nits`)
         });
     }
     
@@ -940,12 +944,16 @@ function updateOETFGraphs() {
         title: 'PQ OETF (ST.2084)',
         xaxis: {
             ...darkLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
-            range: [0, 2.5]
+            title: 'Linear Light Input (0=black, 1=100 nits, 100=10,000 nits)',
+            range: [0, 6],  // Default view 0-600 nits, can zoom out to see full 10,000 nits
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis: {
             ...darkLayout.yaxis,
-            range: [0, 1.2]
+            range: [0, 1.05],
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis2: {
             ...darkLayout.yaxis2
@@ -1169,17 +1177,37 @@ function updateCombinedGraphHighlight(pixel) {
             });
         } else {
             // OETF mode: linear -> encoded
-            ['sRGB', 'PQ', 'HLG'].forEach((type) => {
-                const func = type === 'sRGB' ? TransferFunctions.sRGB :
-                             type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
-                
-                updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-                updates.y.push(
-                    [func.encode(pixel.linear.r)],
-                    [func.encode(pixel.linear.g)],
-                    [func.encode(pixel.linear.b)]
-                );
-            });
+            // We need to update 9 traces total: 3 RGB for each of the 3 curves
+            // Order must match how they're created in updateCombinedOETFGraph
+            
+            // sRGB points (first 3, but may be skipped if out of range)
+            // HLG points (next 3)
+            // PQ points (last 3)
+            
+            // For simplicity, always push 9 values even if some are null
+            // sRGB R, G, B
+            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+            updates.y.push(
+                [pixel.linear.r <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.r) : null],
+                [pixel.linear.g <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.g) : null],
+                [pixel.linear.b <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.b) : null]
+            );
+            
+            // HLG R, G, B
+            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+            updates.y.push(
+                [TransferFunctions.HLG.encode(pixel.linear.r)],
+                [TransferFunctions.HLG.encode(pixel.linear.g)],
+                [TransferFunctions.HLG.encode(pixel.linear.b)]
+            );
+            
+            // PQ R, G, B
+            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+            updates.y.push(
+                [TransferFunctions.PQ.encode(pixel.linear.r)],
+                [TransferFunctions.PQ.encode(pixel.linear.g)],
+                [TransferFunctions.PQ.encode(pixel.linear.b)]
+            );
         }
         
         if (graphDiv.data.length === baseTraceCount) {
@@ -1411,8 +1439,6 @@ function updateCombinedOETFGraph() {
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 200;
-    // Create linear points from 0 to 12 (relative intensity where 1.0 = 100 nits SDR)
-    const xLinear = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
     
     const traces = [];
     
@@ -1429,24 +1455,24 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // sRGB: Only defined for 0-1 range
-        const srgbX = xLinear.filter(v => v <= 1);
+        // All curves should use the same x-axis scale for the combined view
+        // We'll use 0-100 scale (where 1 = 100 nits, 100 = 10,000 nits)
+        // This matches how pixel.linear is scaled (0-1 = 0-100 nits)
+        
+        const numPoints = 200;
+        const xValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
+        
+        // sRGB: Only plot up to x=1 (100 nits)
+        const srgbX = xValues.filter(v => v <= 1);
         const srgbY = srgbX.map(v => TransferFunctions.sRGB.encode(v));
         
-        // HLG: Hybrid log-gamma, designed for HDR
-        const hlgY = xLinear.map(v => {
-            // HLG can handle extended range
-            return TransferFunctions.HLG.encode(v);
-        });
+        // HLG: Plot up to x=12 (1200 nits)
+        const hlgX = xValues.filter(v => v <= 12);
+        const hlgY = hlgX.map(v => TransferFunctions.HLG.encode(v));
         
-        // PQ: Perceptual Quantizer, maps 0-10000 nits to 0-1
-        // PQ reaches y=1 at input=100 (10000 nits)
-        // Create extended range for PQ to show full curve
-        const pqXExtended = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
-        const pqYExtended = pqXExtended.map(v => {
-            // v is in units where 1.0 = 100 nits
-            return TransferFunctions.PQ.encode(v);
-        });
+        // PQ: Full range to x=100 (10,000 nits)
+        const pqX = xValues;
+        const pqY = pqX.map(v => TransferFunctions.PQ.encode(v));
         
         traces.push(
             {
@@ -1459,7 +1485,7 @@ function updateCombinedOETFGraph() {
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: xLinear,
+                x: hlgX,
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
@@ -1468,65 +1494,127 @@ function updateCombinedOETFGraph() {
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: pqXExtended,
-                y: pqYExtended,
+                x: pqX,
+                y: pqY,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
                 line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
-                text: pqXExtended.map(v => `${(v * 100).toFixed(0)} nits`)
+                text: pqX.map(v => `${(v * 100).toFixed(0)} nits`)
             }
         );
     }
     
     // Add hover pixel if exists
     if (currentHoverPixel) {
-        ['sRGB', 'HLG', 'PQ'].forEach((type) => {
-            const func = type === 'sRGB' ? TransferFunctions.sRGB : 
-                         type === 'HLG' ? TransferFunctions.HLG : TransferFunctions.PQ;
-            const symbol = type === 'sRGB' ? 'circle' : 
-                           type === 'HLG' ? 'diamond' : 'square';
-            
-            // PQ curve uses different x-scale (0-100 instead of 0-12)
-            // Since linear values are in units where 1.0 = 100 nits, no scaling needed for PQ
-            const xR = currentHoverPixel.linear.r;
-            const xG = currentHoverPixel.linear.g;
-            const xB = currentHoverPixel.linear.b;
-            
-            traces.push(
-                {
-                    x: [xR],
-                    y: [type === 'sRGB' && currentHoverPixel.linear.r > 1 ? 1.0 : func.encode(currentHoverPixel.linear.r)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} R`,
-                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                    showlegend: false
-                },
-                {
-                    x: [xG],
-                    y: [type === 'sRGB' && currentHoverPixel.linear.g > 1 ? 1.0 : func.encode(currentHoverPixel.linear.g)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} G`,
-                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                    showlegend: false
-                },
-                {
-                    x: [xB],
-                    y: [type === 'sRGB' && currentHoverPixel.linear.b > 1 ? 1.0 : func.encode(currentHoverPixel.linear.b)],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} B`,
-                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                    showlegend: false
-                }
-            );
-        });
+        // For combined view, we show RGB points at the same x position for all curves
+        // Always create all 9 traces in the same order for consistency with updateCombinedGraphHighlight
+        
+        // sRGB hover points (hide if out of range)
+        traces.push(
+            {
+                x: [currentHoverPixel.linear.r],
+                y: [currentHoverPixel.linear.r <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.r) : null],
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Hover sRGB R',
+                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
+                hovertemplate: 'Hover sRGB R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.g],
+                y: [currentHoverPixel.linear.g <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.g) : null],
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Hover sRGB G',
+                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
+                hovertemplate: 'Hover sRGB G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.b],
+                y: [currentHoverPixel.linear.b <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.b) : null],
+                type: 'scatter',
+                mode: 'markers',
+                name: 'Hover sRGB B',
+                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
+                hovertemplate: 'Hover sRGB B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
+                showlegend: false
+            }
+        );
+        
+        // HLG hover points - use normal linear scale
+        const hlgSymbol = 'diamond';
+        traces.push(
+            {
+                x: [currentHoverPixel.linear.r],
+                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.r)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover HLG R`,
+                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
+                hovertemplate: `Hover HLG R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.g],
+                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.g)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover HLG G`,
+                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
+                hovertemplate: `Hover HLG G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.b],
+                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.b)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover HLG B`,
+                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
+                hovertemplate: `Hover HLG B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            }
+        );
+        
+        // PQ hover points - PQ curve uses x values that are already in the same units
+        // as our linear values (1.0 = 100 nits), so no scaling needed
+        const pqSymbol = 'square';
+        traces.push(
+            {
+                x: [currentHoverPixel.linear.r],
+                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.r)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover PQ R`,
+                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
+                hovertemplate: `Hover PQ R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.g],
+                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.g)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover PQ G`,
+                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
+                hovertemplate: `Hover PQ G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            },
+            {
+                x: [currentHoverPixel.linear.b],
+                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.b)],
+                type: 'scatter',
+                mode: 'markers',
+                name: `Hover PQ B`,
+                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
+                hovertemplate: `Hover PQ B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+                showlegend: false
+            }
+        );
     }
     
     const layout = {
@@ -1539,10 +1627,10 @@ function updateCombinedOETFGraph() {
         },
         margin: { t: 40, r: 50, b: 60, l: 60 },
         xaxis: {
-            title: 'Linear Intensity',
+            title: 'Linear Light (1=100 nits, 100=10,000 nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 6],
+            range: [0, 6],  // Default view shows 0-600 nits, users can zoom to see more
             // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag

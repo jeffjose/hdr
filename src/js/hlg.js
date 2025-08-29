@@ -18,32 +18,36 @@ export const HLG = {
     
     /**
      * Encode: Scene linear light to HLG signal (OETF)
-     * Input: App's linear light, where 1.0 = 100 nits (SDR reference white).
-     * Output: HLG signal value (0-1)
+     * Input: Scene-referred linear light, where 1.0 = SDR reference white (100 nits nominal).
+     *        Can accept values up to 12.0 for HDR highlights (1200% diffuse white).
+     * Output: HLG signal value (0-1), where 0.5 = reference white
+     * 
+     * Note: Per ITU-R BT.2100, HLG signal of 0.5 represents reference white for SDR compatibility.
+     * Signal values 0.5-1.0 encode HDR highlights up to 12× reference white.
      */
     encode: (linear) => {
         const { a, b, c } = HLG.constants;
         
         if (linear <= 0) return 0;
+        if (linear >= 12) return 1; // Clamp to peak at 12× reference
 
-        // Convert app's linear (1.0 = 100 nits) to HLG's E (1.0 = 1000 nits nominal peak)
-        const E = linear / 10.0;
+        // Normalize input: HLG expects 0-1 range where 1 = peak (12× reference)
+        // Input linear is 0-12 where 1 = reference white
+        const E = linear / 12;
         
-        const E_times_12 = 12 * E;
-        
-        if (E_times_12 <= 1) {
-            // Square root portion for 12*E ≤ 1
+        if (E <= 1/12) {
+            // Square root portion for E ≤ 1/12
             return Math.sqrt(3 * E);
         } else {
-            // Logarithmic portion for 12*E > 1
-            return a * Math.log(E_times_12 - b) + c;
+            // Logarithmic portion for E > 1/12
+            return a * Math.log(12 * E - b) + c;
         }
     },
     
     /**
      * Decode: HLG signal to scene linear light (Inverse OETF)
-     * Input: HLG signal value (0-1)
-     * Output: App's linear light, where 1.0 = 100 nits.
+     * Input: HLG signal value (0-1), where 0.5 = reference white
+     * Output: Scene-referred linear light, where 1.0 = SDR reference white, up to 12.0 for HDR peaks.
      */
     decode: (hlg) => {
         const { a, b, c } = HLG.constants;
@@ -56,30 +60,30 @@ export const HLG = {
             E = Math.pow(hlg, 2) / 3;
         } else {
             // Inverse of logarithmic portion
-            const E_times_12 = Math.exp((hlg - c) / a) + b;
-            E = E_times_12 / 12;
+            E = (Math.exp((hlg - c) / a) + b) / 12;
         }
 
-        // Convert HLG's E back to app's linear scale
-        return E * 10.0;
+        // Denormalize: E is in 0-1 range, convert back to 0-12
+        // where 1.0 = reference white
+        return E * 12;
     },
     
     /**
      * Complete EOTF: HLG signal to display light
-     * Input: HLG signal value (0-1)
+     * Input: HLG signal value (0-1), where 0.5 = reference white
      * Output: Display light in nits
      * 
      * EOTF = OOTF ∘ inverse_OETF
-     * Display_light = (scene_light)^γ * peak_brightness
+     * Display_light = (scene_light/12)^γ * peak_brightness
      */
     signalToNits: (hlg, peakBrightness = 1000) => {
         const { systemGamma } = HLG.constants;
         
-        // Get scene light from inverse OETF
+        // Get scene light from inverse OETF (0-12 range)
         const sceneLight = HLG.decode(hlg);
         
-        // Apply system gamma (OOTF)
-        const normalizedDisplay = Math.pow(sceneLight, systemGamma);
+        // Normalize to 0-1 for display gamma, then apply system gamma (OOTF)
+        const normalizedDisplay = Math.pow(sceneLight / 12, systemGamma);
         
         // Scale to peak brightness
         return normalizedDisplay * peakBrightness;
@@ -88,7 +92,7 @@ export const HLG = {
     /**
      * Inverse EOTF: Display light to HLG signal
      * Input: Display light in nits
-     * Output: HLG signal value (0-1)
+     * Output: HLG signal value (0-1), where 0.5 = reference white
      */
     nitsToSignal: (nits, peakBrightness = 1000) => {
         const { systemGamma } = HLG.constants;
@@ -96,8 +100,8 @@ export const HLG = {
         // Normalize to peak brightness
         const normalizedDisplay = nits / peakBrightness;
         
-        // Remove system gamma to get scene light
-        const sceneLight = Math.pow(normalizedDisplay, 1 / systemGamma);
+        // Remove system gamma to get normalized scene light, then scale to 0-12
+        const sceneLight = Math.pow(normalizedDisplay, 1 / systemGamma) * 12;
         
         // Apply OETF to get signal
         return HLG.encode(sceneLight);
