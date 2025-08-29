@@ -887,7 +887,8 @@ function updateOETFGraphs() {
             showgrid: false,
             zeroline: false,
             showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
+            showline: false,         // Hide axis line
+            fixedrange: true         // Prevent histogram from moving when zooming
         },
         showlegend: true,
         legend: {
@@ -1378,7 +1379,8 @@ function updateCombinedEOTFGraph() {
             showgrid: false,
             zeroline: false,
             showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
+            showline: false,         // Hide axis line
+            fixedrange: true         // Prevent histogram from moving when zooming
         },
         showlegend: true,
         legend: {
@@ -1554,7 +1556,8 @@ function updateCombinedOETFGraph() {
             showgrid: false,
             zeroline: false,
             showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
+            showline: false,         // Hide axis line
+            fixedrange: true         // Prevent histogram from moving when zooming
         },
         showlegend: true,
         legend: {

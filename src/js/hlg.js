@@ -18,24 +18,25 @@ export const HLG = {
     
     /**
      * Encode: Linear light to HLG signal (OETF)
-     * Input: Linear light value where 1.0 = reference white
+     * Input: Linear light value where 1.0 = reference white (nominal peak of 100 nits)
      * Output: HLG signal value (0-1)
      * 
-     * This is the simplified OETF for 0-12 extended range (ARIB STD-B67)
-     * E' = sqrt(E/3) for E ≤ 1
-     * E' = a*ln(E - b) + c for E > 1
+     * The input linear value is scaled such that 1.0 corresponds to the transition point.
+     * Formula based on ITU-R BT.2100:
+     * E' = sqrt(linear) / 2 for linear ≤ 1
+     * E' = a*ln(linear - b) + c for linear > 1
      */
     encode: (linear) => {
         const { a, b, c } = HLG.constants;
         
         if (linear <= 0) return 0;
         
-        // Simplified HLG for extended range (0-12)
+        // HLG OETF for nominal range up to 12.0
         if (linear <= 1) {
-            // Square root portion for E ≤ 1
-            return Math.sqrt(linear / 3);
+            // Square root portion for linear ≤ 1
+            return Math.sqrt(linear) / 2;
         } else {
-            // Logarithmic portion for E > 1
+            // Logarithmic portion for linear > 1
             return a * Math.log(linear - b) + c;
         }
     },
@@ -45,7 +46,7 @@ export const HLG = {
      * Input: HLG signal value (0-1)
      * Output: Scene light (relative linear)
      * 
-     * This gives scene light, NOT display light
+     * This gives scene light, NOT display light.
      * Display light = scene_light^1.2 * peak_brightness
      */
     decode: (hlg) => {
@@ -55,7 +56,7 @@ export const HLG = {
         
         if (hlg <= 0.5) {
             // Inverse of square root portion
-            return 3 * Math.pow(hlg, 2);
+            return 4 * Math.pow(hlg, 2);
         } else {
             // Inverse of logarithmic portion
             return Math.exp((hlg - c) / a) + b;
