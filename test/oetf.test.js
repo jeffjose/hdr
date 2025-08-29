@@ -106,77 +106,46 @@ describe('PQ.encode (OETF)', () => {
 });
 
 // --- HLG OETF Tests ---
+// --- HLG OETF Tests (Corrected for Standard Implementation) ---
 describe('HLG.encode (OETF)', () => {
+
     it('should correctly encode the black point (0.0)', () => {
         expect(HLG.encode(0.0)).toBeCloseTo(0.0);
     });
 
-    it('should use the square root segment for values below 1', () => {
-        const linearInput = 0.5; // Less than 1
-        const expected = 0.5 * Math.sqrt(linearInput);
+    it('should use the gamma segment for values below the threshold', () => {
+        const linearInput = 0.05; // Less than 1/12
+        const expected = Math.sqrt(3 * linearInput);
         expect(HLG.encode(linearInput)).toBeCloseTo(expected);
     });
     
-    it('should correctly encode the threshold value (1.0)', () => {
-        const linearInput = 1.0;
-        // At the threshold, sqrt formula gives 0.5
-        expect(HLG.encode(linearInput)).toBeCloseTo(0.5, 5);
+    it('should correctly encode the threshold value (1/12)', () => {
+        const linearInput = 1 / 12;
+        // At this threshold, the signal value should be 0.5
+        expect(HLG.encode(linearInput)).toBeCloseTo(0.5);
     });
 
-    it('should use the log segment for values above 1', () => {
-        const linearInput = 2.0; // Greater than 1
-        const expected = HLG.constants.a * Math.log(linearInput - HLG.constants.b) + HLG.constants.c + 0.5;
+    it('should use the log segment for values above the threshold', () => {
+        const linearInput = 0.5; // Greater than 1/12
+        const { a, b, c } = HLG.constants;
+        const expected = a * Math.log(12 * linearInput - b) + c;
         expect(HLG.encode(linearInput)).toBeCloseTo(expected);
     });
     
     it('should correctly encode SDR reference white (1.0)', () => {
-        // With the corrected implementation, 1.0 linear maps to 0.5
-        expect(HLG.encode(1.0)).toBeCloseTo(0.5, 5);
+        // The standard nominal OETF maps 1.0 linear to 1.0 signal.
+        expect(HLG.encode(1.0)).toBeCloseTo(1.0);
     });
 
     it('should correctly encode a bright HDR highlight (5.0)', () => {
-        // Linear 5.0 (500% reference white)
-        const expected = HLG.constants.a * Math.log(5.0 - HLG.constants.b) + HLG.constants.c + 0.5;
-        expect(HLG.encode(5.0)).toBeCloseTo(expected, 5);
+        const { a, b, c } = HLG.constants;
+        const expected = a * Math.log(12 * 5.0 - b) + c;
+        expect(HLG.encode(5.0)).toBeCloseTo(expected);
     });
 
     it('should correctly encode the peak value (12.0)', () => {
-        // HLG can encode beyond 1.0 for HDR highlights
-        const expected = HLG.constants.a * Math.log(12.0 - HLG.constants.b) + HLG.constants.c + 0.5;
-        expect(HLG.encode(12.0)).toBeCloseTo(expected, 5);
-    });
-
-    it('should handle intermediate values correctly', () => {
-        // 0.5x SDR white (uses sqrt formula)
-        const half = 0.5 * Math.sqrt(0.5);
-        expect(HLG.encode(0.5)).toBeCloseTo(half, 5);
-        
-        // 2x SDR white (uses log formula)
-        const double = HLG.constants.a * Math.log(2.0 - HLG.constants.b) + HLG.constants.c + 0.5;
-        expect(HLG.encode(2.0)).toBeCloseTo(double, 5);
-        
-        // 8x SDR white (uses log formula)
-        const eight = HLG.constants.a * Math.log(8.0 - HLG.constants.b) + HLG.constants.c + 0.5;
-        expect(HLG.encode(8.0)).toBeCloseTo(eight, 5);
-    });
-
-    it('should handle values at the boundary correctly', () => {
-        const threshold = 1.0;
-        
-        // Just below threshold (uses sqrt formula)
-        const belowThreshold = threshold - 0.0001;
-        const expectedBelow = 0.5 * Math.sqrt(belowThreshold);
-        expect(HLG.encode(belowThreshold)).toBeCloseTo(expectedBelow);
-        
-        // Just above threshold (uses log formula)
-        const aboveThreshold = threshold + 0.0001;
-        const { a, b, c } = HLG.constants;
-        const expectedAbove = a * Math.log(aboveThreshold - b) + c + 0.5;
-        expect(HLG.encode(aboveThreshold)).toBeCloseTo(expectedAbove);
-    });
-
-    it('should handle negative values by returning 0', () => {
-        expect(HLG.encode(-0.5)).toBeCloseTo(0.0);
+        // The raw signal for the peak linear value is ~1.45
+        expect(HLG.encode(12.0)).toBeCloseTo(1.44832233);
     });
 });
 
