@@ -574,7 +574,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
-            line: { color: '#ff4444', width: 2 },
+            line: { color: '#00bcd4', width: 2 },
             hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
         },
         {
@@ -583,7 +583,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
-            line: { color: '#4444ff', width: 2 },
+            line: { color: '#9c27b0', width: 2 },
             hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
         },
         {
@@ -592,7 +592,7 @@ function initializeCombinedGraph() {
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (ST.2084)',
-            line: { color: '#44ff44', width: 2 },
+            line: { color: '#ff9800', width: 2 },
             hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
             text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
         }
@@ -1510,7 +1510,7 @@ function updateCombinedOETFGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB',
-                line: { color: '#ff4444', width: 2 },
+                line: { color: '#00bcd4', width: 2 },
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1519,7 +1519,7 @@ function updateCombinedOETFGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'HLG',
-                line: { color: '#4444ff', width: 2 },
+                line: { color: '#9c27b0', width: 2 },
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1528,7 +1528,7 @@ function updateCombinedOETFGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
-                line: { color: '#44ff44', width: 2 },
+                line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
                 text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
             }
