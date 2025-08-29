@@ -1047,9 +1047,10 @@ function highlightPixelOnGraphs(pixel) {
                     gY = [pixel.linear.g * 100];
                     bY = [pixel.linear.b * 100];
                 } else if (idx === 1) { // PQ
-                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r) * 100];
-                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g) * 100];
-                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b) * 100];
+                    // PQ decode already returns values where 1.0 = 100 nits
+                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r)];
+                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g)];
+                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b)];
                 } else { // HLG
                     const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
                     const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
@@ -1151,10 +1152,11 @@ function updateCombinedGraphHighlight(pixel) {
                         [pixel.linear.b * 100]
                     );
                 } else if (type === 'PQ') {
+                    // PQ decode already returns values where 1.0 = 100 nits
                     updates.y.push(
-                        [TransferFunctions.PQ.decode(pixel.srgb.r) * 100],
-                        [TransferFunctions.PQ.decode(pixel.srgb.g) * 100],
-                        [TransferFunctions.PQ.decode(pixel.srgb.b) * 100]
+                        [TransferFunctions.PQ.decode(pixel.srgb.r)],
+                        [TransferFunctions.PQ.decode(pixel.srgb.g)],
+                        [TransferFunctions.PQ.decode(pixel.srgb.b)]
                     );
                 } else { // HLG
                     updates.y.push(
@@ -1296,9 +1298,10 @@ function updateCombinedEOTFGraph() {
                 yG = currentHoverPixel.linear.g * 100;
                 yB = currentHoverPixel.linear.b * 100;
             } else if (type === 'PQ') {
-                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 100;
-                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 100;
-                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 100;
+                // PQ decode already returns values where 1.0 = 100 nits
+                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r);
+                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g);
+                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b);
             } else { // HLG
                 const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
                 const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);

@@ -17,50 +17,51 @@ export const HLG = {
     },
     
     /**
-     * Encode: Linear light to HLG signal (OETF)
-     * Input: Linear light value where 1.0 = reference white (nominal peak of 100 nits)
+     * Encode: Scene linear light to HLG signal (OETF)
+     * Input: App's linear light, where 1.0 = 100 nits (SDR reference white).
      * Output: HLG signal value (0-1)
-     * 
-     * The input linear value is scaled such that 1.0 corresponds to the transition point.
-     * Formula based on ITU-R BT.2100:
-     * E' = sqrt(linear) / 2 for linear ≤ 1
-     * E' = a*ln(linear - b) + c for linear > 1
      */
     encode: (linear) => {
         const { a, b, c } = HLG.constants;
         
         if (linear <= 0) return 0;
+
+        // Convert app's linear (1.0 = 100 nits) to HLG's E (1.0 = 1000 nits nominal peak)
+        const E = linear / 10.0;
         
-        // HLG OETF for nominal range up to 12.0
-        if (linear <= 1) {
-            // Square root portion for linear ≤ 1
-            return Math.sqrt(linear) / 2;
+        const E_times_12 = 12 * E;
+        
+        if (E_times_12 <= 1) {
+            // Square root portion for 12*E ≤ 1
+            return Math.sqrt(3 * E);
         } else {
-            // Logarithmic portion for linear > 1
-            return a * Math.log(linear - b) + c;
+            // Logarithmic portion for 12*E > 1
+            return a * Math.log(E_times_12 - b) + c;
         }
     },
     
     /**
-     * Decode: HLG signal to scene light (Inverse OETF)
+     * Decode: HLG signal to scene linear light (Inverse OETF)
      * Input: HLG signal value (0-1)
-     * Output: Scene light (relative linear)
-     * 
-     * This gives scene light, NOT display light.
-     * Display light = scene_light^1.2 * peak_brightness
+     * Output: App's linear light, where 1.0 = 100 nits.
      */
     decode: (hlg) => {
         const { a, b, c } = HLG.constants;
         
         if (hlg <= 0) return 0;
         
+        let E;
         if (hlg <= 0.5) {
             // Inverse of square root portion
-            return 4 * Math.pow(hlg, 2);
+            E = Math.pow(hlg, 2) / 3;
         } else {
             // Inverse of logarithmic portion
-            return Math.exp((hlg - c) / a) + b;
+            const E_times_12 = Math.exp((hlg - c) / a) + b;
+            E = E_times_12 / 12;
         }
+
+        // Convert HLG's E back to app's linear scale
+        return E * 10.0;
     },
     
     /**
