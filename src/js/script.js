@@ -1962,9 +1962,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // No saved image, load Linear Gradient as default
         console.log('No saved image found, loading Linear Gradient as default');
         generateTestPattern('gradient');
-        if (samplesTrigger) {
-            samplesTrigger.innerHTML = '<span>▼</span> Linear Gradient';
-        }
+        // samplesTrigger will be initialized later, update it after DOM is ready
+        setTimeout(() => {
+            const trigger = document.getElementById('samplesTrigger');
+            if (trigger) {
+                trigger.innerHTML = '<span>▼</span> Linear Gradient';
+            }
+        }, 0);
     }
     
     const uploadArea = document.getElementById('uploadArea');
