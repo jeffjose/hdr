@@ -18,17 +18,26 @@ const TransferFunctions = {
     
     PQ: {
         encode: (linearValue) => {
-            linearValue = Math.max(0, linearValue);
-            const Y = linearValue / 100.0;
+            // Match the actual pq.js implementation
+            // Input: Linear light value where 1.0 = 100 nits (SDR reference white)
             const m1 = 0.1593017578125;
             const m2 = 78.84375;
             const c1 = 0.8359375;
             const c2 = 18.8515625;
             const c3 = 18.6875;
+            const peakNits = 10000;
             
+            // Convert from relative (1.0 = 100 nits) to absolute nits
+            const nits = linearValue * 100;
+            
+            // Normalize to PQ range (0-1 where 1.0 = 10,000 nits)
+            const Y = Math.max(0, nits / peakNits);
+            
+            // Apply PQ encoding formula
             const Ym1 = Math.pow(Y, m1);
             const numerator = c1 + c2 * Ym1;
             const denominator = 1 + c3 * Ym1;
+            
             return Math.pow(numerator / denominator, m2);
         }
     },
@@ -109,10 +118,14 @@ describe('PQ.encode (OETF)', () => {
     });
 
     it('should correctly encode a dark tone (1 nit)', () => {
+        // 0.01 in our scale = 1 nit (since 1.0 = 100 nits)
+        // PQ encodes 1 nit to ~0.1499
         expect(TransferFunctions.PQ.encode(0.01)).toBeCloseTo(0.14994573210018022, 5);
     });
 
     it('should correctly encode a mid-tone (50 nits)', () => {
+        // 0.5 in our scale = 50 nits (since 1.0 = 100 nits)
+        // PQ encodes 50 nits to ~0.4403
         expect(TransferFunctions.PQ.encode(0.5)).toBeCloseTo(0.44028157342046104, 5);
     });
 
