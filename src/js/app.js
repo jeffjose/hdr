@@ -1349,12 +1349,13 @@ function updateCombinedGraphHighlight(pixel) {
         ]
       );
 
-      // HLG R, G, B
+      // HLG R, G, B - normalize like the main curve
+      const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
       updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
       updates.y.push(
-        [TransferFunctions.HLG.encode(pixel.linear.r)],
-        [TransferFunctions.HLG.encode(pixel.linear.g)],
-        [TransferFunctions.HLG.encode(pixel.linear.b)]
+        [pixel.linear.r <= 12 ? TransferFunctions.HLG.encode(pixel.linear.r) / peakHlgSignal : null],
+        [pixel.linear.g <= 12 ? TransferFunctions.HLG.encode(pixel.linear.g) / peakHlgSignal : null],
+        [pixel.linear.b <= 12 ? TransferFunctions.HLG.encode(pixel.linear.b) / peakHlgSignal : null]
       );
 
       // PQ R, G, B
@@ -1771,12 +1772,13 @@ function updateCombinedOETFGraph() {
       }
     );
 
-    // HLG hover points - use normal linear scale
+    // HLG hover points - normalize like the main curve
+    const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
     const hlgSymbol = "diamond";
     traces.push(
       {
         x: [currentHoverPixel.linear.r],
-        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.r)],
+        y: [currentHoverPixel.linear.r <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.r) / peakHlgSignal : null],
         type: "scatter",
         mode: "markers",
         name: `Hover HLG R`,
@@ -1791,7 +1793,7 @@ function updateCombinedOETFGraph() {
       },
       {
         x: [currentHoverPixel.linear.g],
-        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.g)],
+        y: [currentHoverPixel.linear.g <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.g) / peakHlgSignal : null],
         type: "scatter",
         mode: "markers",
         name: `Hover HLG G`,
@@ -1806,7 +1808,7 @@ function updateCombinedOETFGraph() {
       },
       {
         x: [currentHoverPixel.linear.b],
-        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.b)],
+        y: [currentHoverPixel.linear.b <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.b) / peakHlgSignal : null],
         type: "scatter",
         mode: "markers",
         name: `Hover HLG B`,
