@@ -1,120 +1,19 @@
-// Transfer function implementations
+// Import transfer function modules
+import { sRGB } from './srgb.js';
+import { PQ } from './pq.js';
+import { HLG } from './hlg.js';
+
+// Create unified TransferFunctions object for backward compatibility
+// Note: HLG functions that need peakBrightness will be wrapped
 const TransferFunctions = {
-    // sRGB transfer function
-    sRGB: {
-        encode: (linear) => {
-            if (linear <= 0.0031308) {
-                return 12.92 * linear;
-            } else {
-                return 1.055 * Math.pow(linear, 1/2.4) - 0.055;
-            }
-        },
-        decode: (srgb) => {
-            if (srgb <= 0.04045) {
-                return srgb / 12.92;
-            } else {
-                return Math.pow((srgb + 0.055) / 1.055, 2.4);
-            }
-        }
-    },
-    
-    // PQ (Perceptual Quantizer) - ST.2084
-    PQ: {
-        // PQ expects absolute luminance normalized to 10,000 nits
-        // Input: relative linear light (0-1 SDR = 0-100 nits, >1 for HDR)
-        // Output: PQ signal value (0.508 for 100 nits, 1.0 for 10,000 nits)
-        encode: (linear) => {
-            // PQ constants
-            const m1 = 0.1593017578125;
-            const m2 = 78.84375;
-            const c1 = 0.8359375;
-            const c2 = 18.8515625;
-            const c3 = 18.6875;
-            
-            // Convert from relative (1.0 = 100 nits) to absolute (1.0 = 10,000 nits)
-            // linear * 100 gives us nits, then divide by 10,000 for PQ normalization
-            const Y = Math.max(0, linear * 0.01); // 100/10000 = 0.01
-            const Ym1 = Math.pow(Y, m1);
-            const num = c1 + c2 * Ym1;
-            const den = 1 + c3 * Ym1;
-            return Math.pow(num / den, m2);
-        },
-        decode: (pq) => {
-            const m1 = 0.1593017578125;
-            const m2 = 78.84375;
-            const c1 = 0.8359375;
-            const c2 = 18.8515625;
-            const c3 = 18.6875;
-            
-            const E = Math.max(0, pq);
-            const Em1 = Math.pow(E, 1/m2);
-            const num = Math.max(0, Em1 - c1);
-            const den = c2 - c3 * Em1;
-            if (den === 0) return 0;
-            // Returns absolute luminance (0-1 where 1 = 10,000 nits)
-            // Convert back to relative (1.0 = 100 nits) by multiplying by 100
-            return Math.pow(num / den, 1/m1) * 100; // Convert from PQ normalized to relative
-        }
-    },
-    
-    // HLG (Hybrid Log-Gamma) - BT.2100
+    sRGB: sRGB,
+    PQ: PQ,
     HLG: {
-        // HLG OETF (Opto-Electronic Transfer Function)
-        // Based on ITU-R BT.2100-2
-        encode: (linear) => {
-            const a = 0.17883277;
-            const b = 1 - 4 * a; // 0.28466892
-            const c = 0.5 - a * Math.log(4 * a); // 0.55991073
-
-            if (linear <= 0) return 0;
-
-            // The HLG formula is specified for E, where E is normalized to 1.0 for peak display luminance.
-            // The graph's `linear` input has 1.0 as 100 nits (SDR ref white).
-            // We must convert it to the normalized E value.
-            const E = (linear * 100) / peakBrightness;
-
-            if (E <= 1 / 12) {
-                return Math.sqrt(3) * Math.pow(E, 0.5);
-            } else {
-                return a * Math.log(12 * E - b) + c;
-            }
-        },
-        // HLG inverse OETF (EOTF uses this)
-        decode: (hlg) => {
-            const a = 0.17883277;
-            const b = 1 - 4 * a; // 0.28466892
-            const c = 0.5 - a * Math.log(4 * a); // 0.55991073
-
-            if (hlg < 0) return 0;
-            
-            let E;
-            if (hlg <= 0.5) { // Signal 0.5 corresponds to E = 1/12
-                E = Math.pow(hlg, 2) / 3;
-            } else {
-                E = (Math.exp((hlg - c) / a) + b) / 12;
-            }
-
-            // The formula gives us E, which is normalized to peak brightness.
-            // We must convert back to relative linear where 1.0 = 100 nits.
-            return (E * peakBrightness) / 100;
-        },
-        // This function is kept for potential future use, but the primary decoding
-        // for the EOTF graph is now handled by the main `decode` function.
-        inverseEOTF: (normalizedBrightness, peakNits = 1000) => {
-            // HLG EOTF: Display_light = (OETF^-1(signal))^gamma
-            // Inverse: signal = OETF(Display_light^(1/gamma))
-            
-            // First, undo the system gamma (typically 1.2)
-            const sceneLight = Math.pow(normalizedBrightness, 1/1.2);
-            
-            // Then encode using HLG OETF to get the signal
-            // Note: This requires the `encode` function to be aware of the peakNits context.
-            const originalPeak = peakBrightness;
-            peakBrightness = peakNits; // Temporarily set context for encode
-            const signal = TransferFunctions.HLG.encode(sceneLight * (peakNits / 100));
-            peakBrightness = originalPeak; // Restore context
-            return signal;
-        }
+        encode: HLG.encode,
+        decode: HLG.decode,
+        // Wrapper for HLG functions that need peakBrightness
+        signalToNits: (signal) => HLG.signalToNits(signal, peakBrightness),
+        nitsToSignal: (nits) => HLG.nitsToSignal(nits, peakBrightness)
     }
 };
 
@@ -492,10 +391,8 @@ function initializeCombinedEOTFGraph() {
         {
             x: signalValues,
             y: signalValues.map(signal => {
-                // HLG EOTF: signal -> scene light -> system gamma -> brightness
-                const sceneLight = TransferFunctions.HLG.decode(signal);
-                const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
-                return normalizedDisplay * peakBrightness;
+                // HLG EOTF: signal -> display brightness
+                return HLG.signalToNits(signal, peakBrightness);
             }),
             type: 'scatter',
             mode: 'lines',
@@ -1259,13 +1156,10 @@ function updateCombinedGraphHighlight(pixel) {
                         [TransferFunctions.PQ.decode(pixel.srgb.b) * 100]
                     );
                 } else { // HLG
-                    const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
-                    const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
-                    const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
                     updates.y.push(
-                        [Math.pow(rScene, 1.2) * peakBrightness],
-                        [Math.pow(gScene, 1.2) * peakBrightness],
-                        [Math.pow(bScene, 1.2) * peakBrightness]
+                        [HLG.signalToNits(pixel.srgb.r, peakBrightness)],
+                        [HLG.signalToNits(pixel.srgb.g, peakBrightness)],
+                        [HLG.signalToNits(pixel.srgb.b, peakBrightness)]
                     );
                 }
             });
