@@ -705,8 +705,8 @@ function updateEOTFGraphs() {
         pqTraces.push({
             x: signalValues,
             y: signalValues.map(signal => {
-                // PQ.decode returns value where 1.0 = 100 nits
-                return TransferFunctions.PQ.decode(signal);
+                // PQ.decode returns value where 1.0 = 100 nits, convert to actual nits
+                return TransferFunctions.PQ.decode(signal) * 100;
             }),
             type: 'scatter',
             mode: 'lines',
@@ -768,10 +768,8 @@ function updateEOTFGraphs() {
         hlgTraces.push({
             x: signalValues,
             y: signalValues.map(signal => {
-                // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
-                const sceneLight = TransferFunctions.HLG.decode(signal);
-                const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
-                return normalizedDisplay * peakBrightness; // Scale to peak brightness
+                // Use the HLG signalToNits function which properly handles the complete EOTF
+                return TransferFunctions.HLG.signalToNits(signal);
             }),
             type: 'scatter',
             mode: 'lines',
@@ -1285,8 +1283,8 @@ function updateCombinedEOTFGraph() {
             {
                 x: signalValues,
                 y: signalValues.map(signal => {
-                    // PQ EOTF: signal -> brightness (decode returns nits)
-                    return TransferFunctions.PQ.decode(signal);
+                    // PQ EOTF: signal -> brightness (decode returns value where 1.0 = 100 nits)
+                    return TransferFunctions.PQ.decode(signal) * 100;
                 }),
                 type: 'scatter',
                 mode: 'lines',
@@ -1297,10 +1295,8 @@ function updateCombinedEOTFGraph() {
             {
                 x: signalValues,
                 y: signalValues.map(signal => {
-                    // HLG EOTF: signal -> scene light -> system gamma -> brightness
-                    const sceneLight = TransferFunctions.HLG.decode(signal);
-                    const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
-                    return normalizedDisplay * peakBrightness;
+                    // HLG EOTF: Use the proper signalToNits function
+                    return TransferFunctions.HLG.signalToNits(signal);
                 }),
                 type: 'scatter',
                 mode: 'lines',
