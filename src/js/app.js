@@ -517,13 +517,17 @@ function initializeCombinedGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 12],
-            dtick: 2
+            dtick: 2,
+            rangemode: 'tozero',  // Prevents dragging below 0
+            fixedrange: false     // Still allows zooming/panning
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1.05]
+            range: [0, 1.05],
+            rangemode: 'tozero',  // Prevents dragging below 0
+            fixedrange: false     // Still allows zooming/panning
         },
         showlegend: true,
         legend: {
@@ -954,13 +958,17 @@ function updateOETFGraphs() {
             title: 'Linear Input',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 1],
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis: {
             title: 'Encoded Output',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1]
+            range: [0, 1],
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis2: {
             // title: 'Histogram (%)',
@@ -1072,11 +1080,15 @@ function updateOETFGraphs() {
             ...darkLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=ref white, 12=peak)',
             range: [0, 12],
-            dtick: 2
+            dtick: 2,
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis: {
             ...darkLayout.yaxis,
-            range: [0, 1.05]
+            range: [0, 1.05],
+            rangemode: 'tozero',
+            fixedrange: false
         },
         yaxis2: {
             ...darkLayout.yaxis2
@@ -1508,15 +1520,9 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
-        // sRGB: Standard gamma curve, saturates at 1.0 since it's SDR
-        const srgbY = xLinear.map(v => {
-            if (v <= 1) {
-                return TransferFunctions.sRGB.encode(v);
-            } else {
-                // sRGB can't encode values > 1, so it clips
-                return 1.0;
-            }
-        });
+        // sRGB: Only defined for 0-1 range
+        const srgbX = xLinear.filter(v => v <= 1);
+        const srgbY = srgbX.map(v => TransferFunctions.sRGB.encode(v));
         
         // HLG: Hybrid log-gamma, designed for HDR
         const hlgY = xLinear.map(v => {
@@ -1535,7 +1541,7 @@ function updateCombinedOETFGraph() {
         
         traces.push(
             {
-                x: xLinear,
+                x: srgbX,
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
@@ -1622,13 +1628,17 @@ function updateCombinedOETFGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 12],
-            dtick: 2
+            dtick: 2,
+            rangemode: 'tozero',  // Prevents dragging below 0
+            fixedrange: false     // Still allows zooming/panning
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 1.05]
+            range: [0, 1.05],
+            rangemode: 'tozero',  // Prevents dragging below 0
+            fixedrange: false     // Still allows zooming/panning
         },
         yaxis2: {
             // title: 'Histogram (%)',
