@@ -131,7 +131,11 @@ function initializeSeparateEOTFGraphs() {
     const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 30, r: 30, b: 50, l: 60 },
         xaxis: {
             title: 'Input Signal (0-1)',
@@ -158,7 +162,10 @@ function initializeSeparateEOTFGraphs() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         }
     };
     
@@ -262,7 +269,11 @@ function initializeSeparateOETFGraphs() {
     const sdrLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 30, r: 30, b: 50, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white)',
@@ -285,7 +296,10 @@ function initializeSeparateOETFGraphs() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         }
     };
     
@@ -371,7 +385,11 @@ function initializeCombinedEOTFGraph() {
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 40, r: 30, b: 50, l: 70 },
         xaxis: {
             title: 'Input Signal (0-1)',
@@ -399,7 +417,10 @@ function initializeCombinedEOTFGraph() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         },
         title: 'EOTF (Display Response Curves)'
     };
@@ -466,7 +487,11 @@ function initializeCombinedGraph() {
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 40, r: 30, b: 50, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
@@ -490,7 +515,10 @@ function initializeCombinedGraph() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         },
         title: 'OETF (Camera Encoding Curves)'
     };
@@ -504,11 +532,13 @@ function initializeCombinedGraph() {
     // Use extended range for combined view to show HDR capabilities
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 3);
     
+    // Filter sRGB values to only show up to x=1 (SDR range)
+    const srgbLinearValues = linearValues.filter(v => v <= 1);
+    
     const traces = [
         {
-            x: linearValues,
-            // sRGB only valid up to 1.0, clamp beyond that
-            y: linearValues.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1),
+            x: srgbLinearValues,
+            y: srgbLinearValues.map(v => TransferFunctions.sRGB.encode(v)),
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
@@ -613,7 +643,11 @@ function updateEOTFGraphs() {
     const darkLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 30, r: 30, b: 50, l: 70 },
         showlegend: true,
         legend: {
@@ -624,7 +658,10 @@ function updateEOTFGraphs() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         }
     };
     
@@ -864,7 +901,11 @@ function updateOETFGraphs() {
     const darkLayout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 30, r: 50, b: 40, l: 50 },
         xaxis: {
             title: 'Linear Input',
@@ -900,7 +941,10 @@ function updateOETFGraphs() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         }
     };
     
@@ -1339,7 +1383,11 @@ function updateCombinedEOTFGraph() {
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 40, r: 50, b: 50, l: 70 },
         xaxis: {
             title: 'Input Signal (0-1)',
@@ -1380,7 +1428,10 @@ function updateCombinedEOTFGraph() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         }
     };
     
@@ -1410,11 +1461,13 @@ function updateCombinedOETFGraph() {
     }
     
     if (showCurves) {
+        // Filter sRGB values to only show up to x=1 (SDR range)
+        const srgbLinearValues = linearValues.filter(v => v <= 1);
+        
         traces.push(
             {
-                x: linearValues,
-                // sRGB only valid up to 1.0, clamp beyond that
-                y: linearValues.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1),
+                x: srgbLinearValues,
+                y: srgbLinearValues.map(v => TransferFunctions.sRGB.encode(v)),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB',
@@ -1488,7 +1541,11 @@ function updateCombinedOETFGraph() {
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
-        font: { color: '#e0e0e0', size: 11 },
+        font: { 
+            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            color: '#e0e0e0', 
+            size: 11 
+        },
         margin: { t: 40, r: 50, b: 50, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
@@ -1524,7 +1581,10 @@ function updateCombinedOETFGraph() {
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
-            font: {color: 'white'}
+            font: {
+                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: 'white'
+            }
         },
         title: 'OETF (Camera Encoding Curves)'
     };
