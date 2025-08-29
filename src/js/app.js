@@ -526,7 +526,7 @@ function initializeCombinedGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 6],
-            dtick: 1,
+            // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
@@ -535,6 +535,7 @@ function initializeCombinedGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1.05],
+            // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
@@ -1089,7 +1090,7 @@ function updateOETFGraphs() {
             ...darkLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=ref white, 12=peak)',
             range: [0, 6],
-            dtick: 1,
+            // dtick removed - auto-adjusts with zoom
             rangemode: 'tozero',
             fixedrange: false
         },
@@ -1637,7 +1638,7 @@ function updateCombinedOETFGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 6],
-            dtick: 1,
+            // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
@@ -1646,6 +1647,7 @@ function updateCombinedOETFGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1.05],
+            // dtick removed - Plotly will auto-adjust based on zoom
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
