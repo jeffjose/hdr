@@ -66,6 +66,18 @@ function loadImageFromURL(url) {
                 updateGraphs();
             }
             
+            // Save to localStorage
+            if (typeof saveImageState === 'function') {
+                saveImageState({
+                    dataUrl: canvas.toDataURL('image/png'),
+                    name: filename,
+                    width: proxyImg.naturalWidth,
+                    height: proxyImg.naturalHeight,
+                    size: null, // URL images don't have file size
+                    type: 'URL'
+                });
+            }
+            
             // Reset button
             if (loadBtn) {
                 loadBtn.textContent = 'Load URL';

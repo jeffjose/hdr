@@ -134,6 +134,12 @@ function initializeSeparateEOTFGraphs() {
         font: { color: '#e0e0e0', size: 11 },
         margin: { t: 30, r: 30, b: 50, l: 60 },
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
@@ -142,12 +148,6 @@ function initializeSeparateEOTFGraphs() {
             tickmode: 'array',
             tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
             ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
-        },
-        yaxis: {
-            title: 'Digital Values (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
         },
         showlegend: true,
         legend: {
@@ -169,79 +169,82 @@ function initializeSeparateEOTFGraphs() {
         modeBarButtonsToRemove: ['toImage']
     };
     
-    // Generate brightness values on log scale
+    // Generate signal values (0-1)
     const numPoints = 100;
-    const minBrightness = 0.01;
+    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB EOTF - SDR standard is 100 nits
     const srgbPeak = 100; // sRGB is SDR, always 100 nits
-    const srgbBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(srgbPeak) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
-    const srgbLayout = {...sdrLayout, title: 'sRGB EOTF (100 nits SDR)'};
+    const srgbLayout = {...sdrLayout, 
+        title: 'sRGB EOTF (100 nits SDR)',
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [-1, Math.log10(srgbPeak) + 0.5],
+            tickvals: [0.1, 1, 10, 100],
+            ticktext: ['0.1', '1', '10', '100']
+        }
+    };
     Plotly.newPlot('srgbGraph', [{
-        x: srgbBrightness,
-        y: srgbBrightness.map(brightness => {
-            const linear = brightness / srgbPeak;
-            return TransferFunctions.sRGB.encode(linear);
+        x: signalValues,
+        y: signalValues.map(signal => {
+            const linear = TransferFunctions.sRGB.decode(signal);
+            return linear * srgbPeak; // Convert to cd/m²
         }),
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
         line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
     }], srgbLayout, config);
     
     // PQ EOTF (absolute brightness)
-    const pqBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(10000) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
     const pqLayout = {
         ...sdrLayout,
         title: 'PQ EOTF (ST.2084)',
-        xaxis: {
-            ...sdrLayout.xaxis,
+        yaxis: {
+            ...sdrLayout.yaxis,
             range: [-1, 4],  // 0.1 to 10000 nits
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         }
     };
     Plotly.newPlot('pqGraph', [{
-        x: pqBrightness,
-        y: pqBrightness.map(brightness => {
-            const normalized = brightness / 10000;
-            return TransferFunctions.PQ.encode(normalized);
+        x: signalValues,
+        y: signalValues.map(signal => {
+            const normalized = TransferFunctions.PQ.decode(signal);
+            return normalized * 10000; // Convert to cd/m²
         }),
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
         line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
     }], pqLayout, config);
     
     // HLG EOTF (relative to display peak)
-    const hlgBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(peakBrightness) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
     const hlgLayout = {
         ...sdrLayout,
-        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`
+        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
+        yaxis: {
+            ...sdrLayout.yaxis,
+            range: [-1, Math.log10(peakBrightness) + 0.5],
+            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
+            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
+        }
     };
     Plotly.newPlot('hlgGraph', [{
-        x: hlgBrightness,
-        y: hlgBrightness.map(brightness => {
-            // HLG inverse EOTF: normalize brightness
-            const normalized = brightness / peakBrightness;
-            return TransferFunctions.HLG.inverseEOTF(normalized);
+        x: signalValues,
+        y: signalValues.map(signal => {
+            // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
+            const sceneLight = TransferFunctions.HLG.decode(signal);
+            const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
+            return normalizedDisplay * peakBrightness; // Scale to peak brightness
         }),
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
         line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
     }], hlgLayout, config);
 }
 
@@ -369,8 +372,15 @@ function initializeCombinedEOTFGraph() {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 40, r: 30, b: 50, l: 60 },
+        margin: { t: 40, r: 30, b: 50, l: 70 },
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05],
+            dtick: 0.2
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
@@ -379,13 +389,6 @@ function initializeCombinedEOTFGraph() {
             tickmode: 'array',
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
-        },
-        yaxis: {
-            title: 'Digital Values (10-bit: 0-1023)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            dtick: 0.2
         },
         showlegend: true,
         legend: {
@@ -406,58 +409,50 @@ function initializeCombinedEOTFGraph() {
         displayModeBar: false
     };
     
-    // Generate brightness values on log scale
+    // Generate signal values (0-1)
     const numPoints = 100;
-    const minBrightness = 0.01;
-    const maxBrightness = 10000;
-    const logMin = Math.log10(minBrightness);
-    const logMax = Math.log10(maxBrightness);
-    const brightnessValues = Array.from({length: numPoints}, (_, i) => {
-        const logValue = logMin + (logMax - logMin) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
+    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [
         {
-            x: brightnessValues.filter(b => b <= 100),
-            y: brightnessValues.filter(b => b <= 100).map(brightness => {
-                // Inverse EOTF: given brightness, find signal value
-                // For sRGB, linear = brightness/100 (SDR peak), then encode
-                const linear = brightness / 100;
-                return TransferFunctions.sRGB.encode(linear);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                // sRGB EOTF: signal -> linear -> brightness
+                const linear = TransferFunctions.sRGB.decode(signal);
+                return linear * 100; // sRGB peak is 100 nits
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB (100 nits SDR)',
             line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         },
         {
-            x: brightnessValues,
-            y: brightnessValues.map(brightness => {
-                // PQ inverse: given brightness, find signal value
-                // PQ decode gives normalized 0-1 for 0-10000 nits
-                const normalized = brightness / 10000;
-                return TransferFunctions.PQ.encode(normalized);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                // PQ EOTF: signal -> normalized -> brightness
+                const normalized = TransferFunctions.PQ.decode(signal);
+                return normalized * 10000; // PQ peak is 10000 nits
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (10000 nits)',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         },
         {
-            x: brightnessValues.filter(b => b <= peakBrightness),
-            y: brightnessValues.filter(b => b <= peakBrightness).map(brightness => {
-                // HLG inverse EOTF: normalize brightness
-                const normalized = brightness / peakBrightness;
-                return TransferFunctions.HLG.inverseEOTF(normalized);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                // HLG EOTF: signal -> scene light -> system gamma -> brightness
+                const sceneLight = TransferFunctions.HLG.decode(signal);
+                const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
+                return normalizedDisplay * peakBrightness;
             }),
             type: 'scatter',
             mode: 'lines',
             name: `HLG (${peakBrightness} nits)`,
             line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         }
     ];
     
@@ -633,25 +628,36 @@ function updateEOTFGraphs() {
         }
     };
     
+    // Generate signal values (0-1)
+    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    
     // sRGB EOTF - SDR standard is 100 nits
     const srgbPeak = 100; // sRGB is SDR, always 100 nits
-    const srgbBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(srgbPeak) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
     const srgbTraces = [];
+    
+    // Add histogram if available and enabled - for EOTF, histogram shows signal distribution
+    if (showHistogram && histogram) {
+        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
+        if (histTrace) {
+            // Use secondary y-axis for histogram with linear scale
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            srgbTraces.push(histTrace);
+        }
+    }
+    
     if (showCurves) {
         srgbTraces.push({
-            x: srgbBrightness,
-            y: srgbBrightness.map(brightness => {
-                const linear = brightness / srgbPeak;
-                return TransferFunctions.sRGB.encode(linear);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                const linear = TransferFunctions.sRGB.decode(signal);
+                return linear * srgbPeak;
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
             line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         });
     }
     
@@ -659,42 +665,62 @@ function updateEOTFGraphs() {
         ...darkLayout,
         title: 'sRGB EOTF (100 nits SDR)',
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
             type: 'log',
-            range: [-1, 2.5],  // 0.1 to ~300 nits
+            range: [-1, Math.log10(srgbPeak) + 0.5],
             tickmode: 'array',
             tickvals: [0.1, 1, 10, 100],
             ticktext: ['0.1', '1', '10', '100']
         },
-        yaxis: {
-            title: 'Digital Values (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         }
     };
     Plotly.react('srgbGraph', srgbTraces, srgbLayout);
     
     // PQ EOTF
-    const pqBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(10000) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
     const pqTraces = [];
+    
+    // Add histogram for PQ EOTF
+    if (showHistogram && histogram) {
+        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // Consistent base scale
+        if (histTrace) {
+            // Use secondary y-axis for histogram with linear scale
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            pqTraces.push(histTrace);
+        }
+    }
+    
     if (showCurves) {
         pqTraces.push({
-            x: pqBrightness,
-            y: pqBrightness.map(brightness => {
-                const normalized = brightness / 10000;
-                return TransferFunctions.PQ.encode(normalized);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                const normalized = TransferFunctions.PQ.decode(signal);
+                return normalized * 10000;
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         });
     }
     
@@ -702,6 +728,12 @@ function updateEOTFGraphs() {
         ...darkLayout,
         title: 'PQ EOTF (ST.2084)',
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
@@ -711,34 +743,49 @@ function updateEOTFGraphs() {
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         },
-        yaxis: {
-            title: 'Digital Values (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         }
     };
     Plotly.react('pqGraph', pqTraces, pqLayout);
     
     // HLG EOTF
-    const hlgBrightness = Array.from({length: numPoints}, (_, i) => {
-        const logValue = Math.log10(minBrightness) + (Math.log10(peakBrightness) - Math.log10(minBrightness)) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
     const hlgTraces = [];
+    
+    // Add histogram for HLG EOTF
+    if (showHistogram && histogram) {
+        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // Consistent base scale
+        if (histTrace) {
+            // Use secondary y-axis for histogram with linear scale
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            hlgTraces.push(histTrace);
+        }
+    }
+    
     if (showCurves) {
         hlgTraces.push({
-            x: hlgBrightness,
-            y: hlgBrightness.map(brightness => {
-                // HLG inverse EOTF: normalize brightness
-                const normalized = brightness / peakBrightness;
-                return TransferFunctions.HLG.inverseEOTF(normalized);
+            x: signalValues,
+            y: signalValues.map(signal => {
+                // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
+                const sceneLight = TransferFunctions.HLG.decode(signal);
+                const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
+                return normalizedDisplay * peakBrightness; // Scale to peak brightness
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
             line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
         });
     }
     
@@ -746,6 +793,12 @@ function updateEOTFGraphs() {
         ...darkLayout,
         title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
@@ -755,11 +808,17 @@ function updateEOTFGraphs() {
             tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
             ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
         },
-        yaxis: {
-            title: 'Digital Values (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         }
     };
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
@@ -782,8 +841,12 @@ function updateOETFGraphs() {
     
     // Add histogram if available and enabled
     if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]);
-        if (histTrace) srgbTraces.push(histTrace);
+        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
+        if (histTrace) {
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            srgbTraces.push(histTrace);
+        }
     }
     
     if (showCurves) {
@@ -802,7 +865,7 @@ function updateOETFGraphs() {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 30, r: 30, b: 40, l: 50 },
+        margin: { t: 30, r: 50, b: 40, l: 50 },
         xaxis: {
             title: 'Linear Input',
             gridcolor: '#333',
@@ -814,6 +877,18 @@ function updateOETFGraphs() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1]
+        },
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         },
         showlegend: true,
         legend: {
@@ -836,9 +911,12 @@ function updateOETFGraphs() {
     
     // Add histogram for PQ
     if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0], 
-            (x) => TransferFunctions.PQ.encode(x));
-        if (histTrace) pqTraces.push(histTrace);
+        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // No transform function
+        if (histTrace) {
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            pqTraces.push(histTrace);
+        }
     }
     
     if (showCurves) {
@@ -864,6 +942,10 @@ function updateOETFGraphs() {
         yaxis: {
             ...darkLayout.yaxis,
             range: [0, 1.2]
+        },
+        yaxis2: {
+            ...darkLayout.yaxis2
+            // range kept at [0, 0.5] from darkLayout
         }
     };
     Plotly.react('pqGraph', pqTraces, pqLayout);
@@ -873,9 +955,12 @@ function updateOETFGraphs() {
     
     // Add histogram for HLG
     if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176], 
-            (x) => TransferFunctions.HLG.encode(x));
-        if (histTrace) hlgTraces.push(histTrace);
+        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // No transform function
+        if (histTrace) {
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            hlgTraces.push(histTrace);
+        }
     }
     
     if (showCurves) {
@@ -901,6 +986,10 @@ function updateOETFGraphs() {
         yaxis: {
             ...darkLayout.yaxis,
             range: [0, 1.3]
+        },
+        yaxis2: {
+            ...darkLayout.yaxis2
+            // range kept at [0, 0.5] from darkLayout
         }
     };
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
@@ -933,12 +1022,40 @@ function highlightPixelOnGraphs(pixel) {
         const baseTraceCount = graphDiv.data.filter(trace => !trace.name || !trace.name.includes('Hover')).length;
         
         if (pixel) {
-            const rData = [pixel.linear.r];
-            const gData = [pixel.linear.g];
-            const bData = [pixel.linear.b];
-            const rY = [functions[idx].encode(pixel.linear.r)];
-            const gY = [functions[idx].encode(pixel.linear.g)];
-            const bY = [functions[idx].encode(pixel.linear.b)];
+            let rData, gData, bData, rY, gY, bY;
+            
+            if (transferMode === 'eotf') {
+                // EOTF mode: show encoded RGB values on X-axis, brightness on Y-axis
+                rData = [pixel.srgb.r];
+                gData = [pixel.srgb.g];
+                bData = [pixel.srgb.b];
+                
+                // Calculate brightness output for each channel
+                if (idx === 0) { // sRGB
+                    rY = [pixel.linear.r * 100]; // Convert to nits
+                    gY = [pixel.linear.g * 100];
+                    bY = [pixel.linear.b * 100];
+                } else if (idx === 1) { // PQ
+                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r) * 10000];
+                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g) * 10000];
+                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b) * 10000];
+                } else { // HLG
+                    const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
+                    const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
+                    const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
+                    rY = [Math.pow(rScene, 1.2) * peakBrightness];
+                    gY = [Math.pow(gScene, 1.2) * peakBrightness];
+                    bY = [Math.pow(bScene, 1.2) * peakBrightness];
+                }
+            } else {
+                // OETF mode: show linear values on X-axis, encoded on Y-axis
+                rData = [pixel.linear.r];
+                gData = [pixel.linear.g];
+                bData = [pixel.linear.b];
+                rY = [functions[idx].encode(pixel.linear.r)];
+                gY = [functions[idx].encode(pixel.linear.g)];
+                bY = [functions[idx].encode(pixel.linear.b)];
+            }
             
             // Check if we need to add or update traces
             if (graphDiv.data.length === baseTraceCount) {
@@ -1009,17 +1126,50 @@ function updateCombinedGraphHighlight(pixel) {
             y: []
         };
         
-        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
-            const func = type === 'sRGB' ? TransferFunctions.sRGB :
-                         type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
-            
-            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-            updates.y.push(
-                [func.encode(pixel.linear.r)],
-                [func.encode(pixel.linear.g)],
-                [func.encode(pixel.linear.b)]
-            );
-        });
+        if (transferMode === 'eotf') {
+            // EOTF mode: signal -> brightness
+            ['sRGB', 'PQ', 'HLG'].forEach((type) => {
+                // X-axis: encoded signal values
+                updates.x.push([pixel.srgb.r], [pixel.srgb.g], [pixel.srgb.b]);
+                
+                // Y-axis: brightness output
+                if (type === 'sRGB') {
+                    updates.y.push(
+                        [pixel.linear.r * 100],
+                        [pixel.linear.g * 100],
+                        [pixel.linear.b * 100]
+                    );
+                } else if (type === 'PQ') {
+                    updates.y.push(
+                        [TransferFunctions.PQ.decode(pixel.srgb.r) * 10000],
+                        [TransferFunctions.PQ.decode(pixel.srgb.g) * 10000],
+                        [TransferFunctions.PQ.decode(pixel.srgb.b) * 10000]
+                    );
+                } else { // HLG
+                    const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
+                    const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
+                    const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
+                    updates.y.push(
+                        [Math.pow(rScene, 1.2) * peakBrightness],
+                        [Math.pow(gScene, 1.2) * peakBrightness],
+                        [Math.pow(bScene, 1.2) * peakBrightness]
+                    );
+                }
+            });
+        } else {
+            // OETF mode: linear -> encoded
+            ['sRGB', 'PQ', 'HLG'].forEach((type) => {
+                const func = type === 'sRGB' ? TransferFunctions.sRGB :
+                             type === 'PQ' ? TransferFunctions.PQ : TransferFunctions.HLG;
+                
+                updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+                updates.y.push(
+                    [func.encode(pixel.linear.r)],
+                    [func.encode(pixel.linear.g)],
+                    [func.encode(pixel.linear.b)]
+                );
+            });
+        }
         
         if (graphDiv.data.length === baseTraceCount) {
             // Need to add traces - do full update
@@ -1060,70 +1210,145 @@ function updateCombinedEOTFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    // Generate brightness values on log scale
+    // Generate signal values (0-1)
     const numPoints = 100;
-    const minBrightness = 0.01;
-    const maxBrightness = 10000;
-    const logMin = Math.log10(minBrightness);
-    const logMax = Math.log10(maxBrightness);
-    const brightnessValues = Array.from({length: numPoints}, (_, i) => {
-        const logValue = logMin + (logMax - logMin) * i / (numPoints - 1);
-        return Math.pow(10, logValue);
-    });
+    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     const traces = [];
+    
+    // Add histogram if enabled for EOTF mode
+    if (showHistogram && histogram) {
+        const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // Consistent base scale
+        if (histTrace) {
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
+            histTrace.showlegend = true;
+            histTrace.name = 'Histogram';
+            traces.push(histTrace);
+        }
+    }
     
     if (showCurves) {
         traces.push(
             {
-                x: brightnessValues.filter(b => b <= 100),
-                y: brightnessValues.filter(b => b <= 100).map(brightness => {
-                    // Inverse EOTF: given brightness, find signal value
-                    // sRGB is SDR, always 100 nits peak
-                    const linear = brightness / 100;
-                    return TransferFunctions.sRGB.encode(linear);
+                x: signalValues,
+                y: signalValues.map(signal => {
+                    // sRGB EOTF: signal -> linear -> brightness
+                    const linear = TransferFunctions.sRGB.decode(signal);
+                    return linear * 100; // sRGB peak is 100 nits
                 }),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'sRGB (100 nits SDR)',
                 line: { color: '#00bcd4', width: 2 },
-                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
             },
             {
-                x: brightnessValues,
-                y: brightnessValues.map(brightness => {
-                    // PQ inverse: given brightness, find signal value
-                    const normalized = brightness / 10000;
-                    return TransferFunctions.PQ.encode(normalized);
+                x: signalValues,
+                y: signalValues.map(signal => {
+                    // PQ EOTF: signal -> normalized -> brightness
+                    const normalized = TransferFunctions.PQ.decode(signal);
+                    return normalized * 10000; // PQ peak is 10000 nits
                 }),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (10000 nits)',
                 line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
             },
             {
-                x: brightnessValues.filter(b => b <= peakBrightness),
-                y: brightnessValues.filter(b => b <= peakBrightness).map(brightness => {
-                    // HLG inverse EOTF: normalize brightness
-                    const normalized = brightness / peakBrightness;
-                    return TransferFunctions.HLG.inverseEOTF(normalized);
+                x: signalValues,
+                y: signalValues.map(signal => {
+                    // HLG EOTF: signal -> scene light -> system gamma -> brightness
+                    const sceneLight = TransferFunctions.HLG.decode(signal);
+                    const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
+                    return normalizedDisplay * peakBrightness;
                 }),
                 type: 'scatter',
                 mode: 'lines',
                 name: `HLG (${peakBrightness} nits)`,
                 line: { color: '#9c27b0', width: 2 },
-                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
+                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
             }
         );
+    }
+    
+    // Add hover pixel if exists for EOTF mode
+    if (currentHoverPixel) {
+        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
+            const symbol = type === 'sRGB' ? 'circle' :
+                          type === 'PQ' ? 'square' : 'diamond';
+            
+            let xR = currentHoverPixel.srgb.r;
+            let xG = currentHoverPixel.srgb.g;
+            let xB = currentHoverPixel.srgb.b;
+            let yR, yG, yB;
+            
+            if (type === 'sRGB') {
+                yR = currentHoverPixel.linear.r * 100;
+                yG = currentHoverPixel.linear.g * 100;
+                yB = currentHoverPixel.linear.b * 100;
+            } else if (type === 'PQ') {
+                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 10000;
+                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 10000;
+                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 10000;
+            } else { // HLG
+                const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
+                const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);
+                const bScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.b);
+                yR = Math.pow(rScene, 1.2) * peakBrightness;
+                yG = Math.pow(gScene, 1.2) * peakBrightness;
+                yB = Math.pow(bScene, 1.2) * peakBrightness;
+            }
+            
+            traces.push(
+                {
+                    x: [xR],
+                    y: [yR],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} R`,
+                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} R<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+                    showlegend: false
+                },
+                {
+                    x: [xG],
+                    y: [yG],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} G`,
+                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} G<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+                    showlegend: false
+                },
+                {
+                    x: [xB],
+                    y: [yB],
+                    type: 'scatter',
+                    mode: 'markers',
+                    name: `Hover ${type} B`,
+                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol },
+                    hovertemplate: `Hover ${type} B<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+                    showlegend: false
+                }
+            );
+        });
     }
     
     const layout = {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 40, r: 30, b: 50, l: 70 },
+        margin: { t: 40, r: 50, b: 50, l: 70 },
         xaxis: {
+            title: 'Input Signal (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05],
+            dtick: 0.2
+        },
+        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
@@ -1133,12 +1358,17 @@ function updateCombinedEOTFGraph() {
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         },
-        yaxis: {
-            title: 'Digital Values (10-bit: 0-1023)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            dtick: 0.2
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         },
         showlegend: true,
         legend: {
@@ -1169,16 +1399,12 @@ function updateCombinedOETFGraph() {
     
     // Add histogram if enabled
     if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.25, [255, 255, 255], 
-            (x) => {
-                // Use average of all transfer functions for combined view
-                const srgbValue = TransferFunctions.sRGB.encode(x);
-                const pqValue = TransferFunctions.PQ.encode(x);
-                const hlgValue = TransferFunctions.HLG.encode(x);
-                return (srgbValue + pqValue + hlgValue) / 3;
-            });
+        const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // No transform function
         if (histTrace) {
+            histTrace.yaxis = 'y2';
+            histTrace.opacity = 0.3;
             histTrace.showlegend = true;
+            histTrace.name = 'Histogram';
             traces.push(histTrace);
         }
     }
@@ -1263,7 +1489,7 @@ function updateCombinedOETFGraph() {
         paper_bgcolor: '#0a0a0a',
         plot_bgcolor: '#0a0a0a',
         font: { color: '#e0e0e0', size: 11 },
-        margin: { t: 40, r: 30, b: 50, l: 60 },
+        margin: { t: 40, r: 50, b: 50, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
             gridcolor: '#333',
@@ -1276,6 +1502,18 @@ function updateCombinedOETFGraph() {
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1.3]
+        },
+        yaxis2: {
+            // title: 'Histogram (%)',
+            // titlefont: { color: '#888' },
+            // tickfont: { color: '#888' },
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 0.9],  // Increased range to make histogram 1/3 height
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,  // Hide tick labels
+            showline: false          // Hide axis line
         },
         showlegend: true,
         legend: {
@@ -1386,6 +1624,16 @@ function generateTestPattern(type) {
         `;
         histogram = calculateHistogram(imageData);
         updateGraphs();
+        
+        // Save to localStorage
+        saveImageState({
+            dataUrl: canvas.toDataURL('image/png'),
+            name: `Test Pattern - ${type}`,
+            width: width,
+            height: height,
+            size: null, // Synthetic images don't have file size
+            type: 'Test Pattern'
+        });
     };
 }
 
@@ -1460,6 +1708,87 @@ function generateSampleImage(type) {
                 ctx.fillRect(x - 50, y - 50, 100, 100);
             }
             break;
+            
+        case 'city':
+            // Dark sky
+            const nightGradient = ctx.createLinearGradient(0, 0, 0, height);
+            nightGradient.addColorStop(0, 'rgb(10, 10, 40)');
+            nightGradient.addColorStop(1, 'rgb(30, 30, 60)');
+            ctx.fillStyle = nightGradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Buildings with windows
+            for (let i = 0; i < 8; i++) {
+                const bHeight = Math.random() * height * 0.6 + height * 0.2;
+                const bWidth = width / 10;
+                const bX = i * (width / 8);
+                
+                // Building
+                ctx.fillStyle = `rgb(${20 + i * 5}, ${20 + i * 5}, ${30 + i * 5})`;
+                ctx.fillRect(bX, height - bHeight, bWidth, bHeight);
+                
+                // Windows
+                for (let w = 0; w < 4; w++) {
+                    for (let h = 0; h < Math.floor(bHeight / 30); h++) {
+                        if (Math.random() > 0.3) {
+                            ctx.fillStyle = `rgb(${255}, ${200 + Math.random() * 55}, ${100})`;
+                            ctx.fillRect(bX + w * 15 + 10, height - bHeight + h * 30 + 10, 10, 15);
+                        }
+                    }
+                }
+            }
+            break;
+            
+        case 'fire':
+            // Dark background
+            ctx.fillStyle = 'rgb(10, 5, 0)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Fire gradient effect
+            for (let i = 0; i < 30; i++) {
+                const fireGrad = ctx.createRadialGradient(
+                    width/2 + (Math.random() - 0.5) * 100,
+                    height * 0.7 + (Math.random() - 0.5) * 50,
+                    0,
+                    width/2,
+                    height * 0.7,
+                    100 + Math.random() * 50
+                );
+                fireGrad.addColorStop(0, `rgba(255, ${200 + Math.random() * 55}, 0, 0.8)`);
+                fireGrad.addColorStop(0.5, `rgba(255, ${100 + Math.random() * 50}, 0, 0.4)`);
+                fireGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                ctx.fillStyle = fireGrad;
+                ctx.fillRect(0, 0, width, height);
+            }
+            break;
+            
+        case 'ocean':
+            // Ocean gradient
+            const oceanGrad = ctx.createLinearGradient(0, 0, 0, height);
+            oceanGrad.addColorStop(0, 'rgb(135, 206, 250)'); // sky blue
+            oceanGrad.addColorStop(0.4, 'rgb(100, 180, 220)');
+            oceanGrad.addColorStop(0.5, 'rgb(0, 119, 190)'); // ocean blue
+            oceanGrad.addColorStop(1, 'rgb(0, 50, 100)'); // deep ocean
+            ctx.fillStyle = oceanGrad;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Wave patterns
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                const y = height * 0.4 + i * 20;
+                for (let x = 0; x < width; x += 10) {
+                    const waveY = y + Math.sin((x + i * 50) * 0.02) * 10;
+                    if (x === 0) {
+                        ctx.moveTo(x, waveY);
+                    } else {
+                        ctx.lineTo(x, waveY);
+                    }
+                }
+                ctx.stroke();
+            }
+            break;
     }
     
     // Convert canvas to image
@@ -1474,7 +1803,68 @@ function generateSampleImage(type) {
         `;
         histogram = calculateHistogram(imageData);
         updateGraphs();
+        
+        // Save to localStorage
+        saveImageState({
+            dataUrl: canvas.toDataURL('image/png'),
+            name: `Sample - ${type}`,
+            width: width,
+            height: height,
+            size: null, // Generated images don't have file size
+            type: 'Generated Sample'
+        });
     };
+}
+
+// localStorage helper functions for image persistence
+function saveImageState(imageInfo) {
+    try {
+        const imageState = {
+            dataUrl: imageInfo.dataUrl,
+            name: imageInfo.name,
+            width: imageInfo.width,
+            height: imageInfo.height,
+            size: imageInfo.size,
+            type: imageInfo.type || 'Generated',
+            timestamp: Date.now()
+        };
+        localStorage.setItem('hdr_analyzer_image', JSON.stringify(imageState));
+        console.log('Image state saved to localStorage:', imageInfo.name);
+    } catch (e) {
+        console.warn('Failed to save image state to localStorage:', e);
+    }
+}
+
+function loadImageState() {
+    try {
+        const stored = localStorage.getItem('hdr_analyzer_image');
+        if (!stored) return null;
+        
+        const imageState = JSON.parse(stored);
+        const now = Date.now();
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+        
+        // Check if image is less than 7 days old
+        if (now - imageState.timestamp > sevenDaysMs) {
+            console.log('Stored image is older than 7 days, clearing...');
+            clearImageState();
+            return null;
+        }
+        
+        return imageState;
+    } catch (e) {
+        console.warn('Failed to load image state from localStorage:', e);
+        return null;
+    }
+}
+
+function clearImageState() {
+    try {
+        localStorage.removeItem('hdr_analyzer_image');
+        console.log('Image state cleared from localStorage');
+    } catch (e) {
+        console.warn('Failed to clear image state from localStorage:', e);
+    }
 }
 
 // Handle image upload
@@ -1507,6 +1897,16 @@ function handleImageUpload(file) {
             
             // Update graphs
             updateGraphs();
+            
+            // Save to localStorage
+            saveImageState({
+                dataUrl: e.target.result,
+                name: file.name,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                size: file.size,
+                type: 'Uploaded'
+            });
         };
         img.src = e.target.result;
     };
@@ -1525,6 +1925,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add histogram visualization controls
     if (typeof addHistogramControls === 'function') {
         addHistogramControls();
+    }
+    
+    // Try to restore saved image from localStorage
+    const savedImageState = loadImageState();
+    if (savedImageState) {
+        // Restore saved image
+        console.log('Restoring saved image:', savedImageState.name);
+        const img = document.getElementById('uploadedImage');
+        img.src = savedImageState.dataUrl;
+        img.style.display = 'block';
+        
+        img.onload = function() {
+            // Draw to canvas for analysis
+            canvas.width = savedImageState.width;
+            canvas.height = savedImageState.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // Get image data
+            imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Update info display
+            document.getElementById('imageInfo').innerHTML = `
+                <strong>Restored:</strong> ${savedImageState.type}<br>
+                <strong>File:</strong> ${savedImageState.name.substring(0, 30)}${savedImageState.name.length > 30 ? '...' : ''}<br>
+                <strong>Dimensions:</strong> ${savedImageState.width} × ${savedImageState.height}
+            `;
+            
+            // Calculate histogram
+            histogram = calculateHistogram(imageData);
+            
+            // Update graphs
+            updateGraphs();
+        };
+    } else {
+        // No saved image, load Linear Gradient as default
+        console.log('No saved image found, loading Linear Gradient as default');
+        generateTestPattern('gradient');
+        if (samplesTrigger) {
+            samplesTrigger.innerHTML = '<span>▼</span> Linear Gradient';
+        }
     }
     
     const uploadArea = document.getElementById('uploadArea');
@@ -1628,7 +2068,10 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             initializeSeparateOETFGraphs();
         }
-        updateGraphs();
+        // Always update graphs to include histogram
+        if (histogram) {
+            updateGraphs();
+        }
     });
     
     combinedView.addEventListener('click', () => {
@@ -1643,7 +2086,10 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             initializeCombinedGraph();
         }
-        updateCombinedGraph();
+        // Always update combined graph to include histogram
+        if (histogram) {
+            updateCombinedGraph();
+        }
         setTimeout(() => {
             const combinedGraphDiv = document.getElementById('combinedGraph');
             if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
@@ -1660,6 +2106,10 @@ document.addEventListener('DOMContentLoaded', function() {
         eotfMode.classList.remove('active');
         // Re-initialize graphs when switching transfer modes
         initializeGraphs();
+        // Update graphs to include histogram if available
+        if (histogram) {
+            updateGraphs();
+        }
     });
     
     eotfMode.addEventListener('click', function() {
@@ -1669,6 +2119,10 @@ document.addEventListener('DOMContentLoaded', function() {
         oetfMode.classList.remove('active');
         // Re-initialize graphs when switching transfer modes
         initializeGraphs();
+        // Update graphs to include histogram if available
+        if (histogram) {
+            updateGraphs();
+        }
     });
     
     // Peak brightness selector

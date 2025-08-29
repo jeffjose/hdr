@@ -177,8 +177,8 @@ function addHistogramControls() {
     vizContainer.style.cssText = 'display: flex; align-items: center; gap: 8px;';
     
     const vizLabel = document.createElement('label');
-    vizLabel.textContent = 'Histogram:';
-    vizLabel.style.cssText = 'font-size: 13px; color: #999;';
+    vizLabel.textContent = 'Histogram';
+    vizLabel.style.cssText = 'font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px;';
     
     const vizSelect = document.createElement('select');
     vizSelect.id = 'histogramVizSelect';
