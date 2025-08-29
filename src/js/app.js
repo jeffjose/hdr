@@ -1540,9 +1540,11 @@ function updateCombinedOETFGraph() {
         });
         
         // PQ: Perceptual Quantizer, maps 0-10000 nits to 0-1
-        const pqY = xLinear.map(v => {
+        // PQ reaches y=1 at input=100 (10000 nits)
+        // Create extended range for PQ to show full curve
+        const pqXExtended = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
+        const pqYExtended = pqXExtended.map(v => {
             // v is in units where 1.0 = 100 nits
-            // PQ expects input where 1.0 = 100 nits
             return TransferFunctions.PQ.encode(v);
         });
         
@@ -1566,14 +1568,14 @@ function updateCombinedOETFGraph() {
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: xLinear,
-                y: pqY,
+                x: pqXExtended,
+                y: pqYExtended,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
                 line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
-                text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
+                text: pqXExtended.map(v => `${(v * 100).toFixed(0)} nits`)
             }
         );
     }
