@@ -136,7 +136,7 @@ function initializeSeparateEOTFGraphs() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 30, r: 30, b: 50, l: 60 },
+        margin: { t: 30, r: 30, b: 60, l: 60 },
         xaxis: {
             title: 'Input Signal (0-1)',
             gridcolor: '#333',
@@ -274,7 +274,7 @@ function initializeSeparateOETFGraphs() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 30, r: 30, b: 50, l: 60 },
+        margin: { t: 30, r: 30, b: 60, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white)',
             gridcolor: '#333',
@@ -390,7 +390,7 @@ function initializeCombinedEOTFGraph() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 40, r: 30, b: 50, l: 70 },
+        margin: { t: 40, r: 30, b: 60, l: 70 },
         xaxis: {
             title: 'Input Signal (0-1)',
             gridcolor: '#333',
@@ -492,7 +492,7 @@ function initializeCombinedGraph() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 40, r: 30, b: 50, l: 60 },
+        margin: { t: 40, r: 30, b: 60, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
             gridcolor: '#333',
@@ -648,7 +648,7 @@ function updateEOTFGraphs() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 30, r: 30, b: 50, l: 70 },
+        margin: { t: 30, r: 30, b: 60, l: 70 },
         showlegend: true,
         legend: {
             x: 0.02,
@@ -1388,7 +1388,7 @@ function updateCombinedEOTFGraph() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 40, r: 50, b: 50, l: 70 },
+        margin: { t: 40, r: 50, b: 60, l: 70 },
         xaxis: {
             title: 'Input Signal (0-1)',
             gridcolor: '#333',
@@ -1546,7 +1546,7 @@ function updateCombinedOETFGraph() {
             color: '#e0e0e0', 
             size: 11 
         },
-        margin: { t: 40, r: 50, b: 50, l: 60 },
+        margin: { t: 40, r: 50, b: 60, l: 60 },
         xaxis: {
             title: 'Linear Light Input (0=black, 1=SDR white, >1=HDR)',
             gridcolor: '#333',
