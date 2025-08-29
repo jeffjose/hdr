@@ -167,6 +167,14 @@ Simply open `index.html` in a modern web browser. No build process or server req
 - Smooth transitions for UI elements
 - Consistent spacing and typography
 
+### Graph Color Scheme
+**IMPORTANT**: Use consistent colors across all graphs (OETF and EOTF):
+- **sRGB**: `#00bcd4` (cyan)
+- **PQ**: `#ff9800` (orange)
+- **HLG**: `#9c27b0` (purple)
+
+These colors provide good contrast against the dark background and are easily distinguishable from each other. Never use pure RGB colors (red/green/blue) for the transfer function curves as they conflict with the RGB channel markers used for pixel highlighting.
+
 ### Performance
 - Debounce expensive operations
 - Use requestAnimationFrame for animations

@@ -1539,8 +1539,8 @@ function updateCombinedOETFGraph() {
                 y: srgbY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'SDR gamma curve',
-                line: { color: '#ff0000', width: 2 },
+                name: 'sRGB',
+                line: { color: '#00bcd4', width: 2 },
                 hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1548,8 +1548,8 @@ function updateCombinedOETFGraph() {
                 y: hlgY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Hybrid log-gamma',
-                line: { color: '#0000ff', width: 2 },
+                name: 'HLG',
+                line: { color: '#9c27b0', width: 2 },
                 hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
@@ -1558,7 +1558,7 @@ function updateCombinedOETFGraph() {
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (ST.2084)',
-                line: { color: '#00ff00', width: 2 },
+                line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
                 text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
             }
