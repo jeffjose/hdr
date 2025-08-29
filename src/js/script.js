@@ -56,9 +56,7 @@ const TransferFunctions = {
     
     // HLG (Hybrid Log-Gamma) - BT.2100
     HLG: {
-        // HLG system gamma = 1.2, reference white = 1.0
-        // Input: relative linear light (0-1 SDR, up to ~12 for HDR)
-        // Output: HLG signal value (0-1 for SDR, up to ~1.5 for HDR)
+        // HLG OETF (Opto-Electronic Transfer Function)
         encode: (linear) => {
             const a = 0.17883277;
             const b = 0.28466892;
@@ -71,6 +69,7 @@ const TransferFunctions = {
                 return a * Math.log(12 * linear - b) + c;
             }
         },
+        // HLG inverse OETF (for EOTF graphs)
         decode: (hlg) => {
             const a = 0.17883277;
             const b = 0.28466892;
@@ -82,6 +81,17 @@ const TransferFunctions = {
             } else {
                 return (Math.exp((hlg - c) / a) + b) / 12;
             }
+        },
+        // For inverse EOTF (brightness -> signal), we need special handling
+        inverseEOTF: (normalizedBrightness, peakNits = 1000) => {
+            // HLG EOTF: Display_light = (OETF^-1(signal))^1.2
+            // So for inverse: signal = OETF(Display_light^(1/1.2))
+            
+            // First, undo the system gamma (1.2) that the display applies
+            const sceneLight = Math.pow(normalizedBrightness, 1/1.2);
+            
+            // Then encode using HLG OETF to get the signal
+            return TransferFunctions.HLG.encode(sceneLight);
         }
     }
 };
@@ -124,16 +134,20 @@ function initializeSeparateEOTFGraphs() {
         font: { color: '#e0e0e0', size: 11 },
         margin: { t: 30, r: 30, b: 50, l: 60 },
         xaxis: {
-            title: 'Encoded Signal Input (0=black, 1=max code)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1]
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, peakBrightness]
+            type: 'log',
+            range: [-1, Math.log10(peakBrightness) + 0.5],
+            tickmode: 'array',
+            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
+            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
+        },
+        yaxis: {
+            title: 'Digital Values (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
         },
         showlegend: true,
         legend: {
@@ -155,77 +169,79 @@ function initializeSeparateEOTFGraphs() {
         modeBarButtonsToRemove: ['toImage']
     };
     
-    // Generate transfer curves for EOTF
-    const numPoints = 100; // Reduced for better performance
-    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Generate brightness values on log scale
+    const numPoints = 100;
+    const minBrightness = 0.01;
     
-    // sRGB EOTF (gamma 2.2 approximation)
-    const srgbLayout = {...sdrLayout, title: 'sRGB EOTF (Display Response)'};
-    const srgbEOTF = encodedValues.map(v => {
-        // sRGB EOTF: decode then scale to display peak
-        const linear = TransferFunctions.sRGB.decode(v);
-        return Math.max(0.01, linear * peakBrightness); // Ensure minimum for log scale
+    // sRGB EOTF - SDR standard is 100 nits
+    const srgbPeak = 100; // sRGB is SDR, always 100 nits
+    const srgbBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(srgbPeak) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
     });
+    const srgbLayout = {...sdrLayout, title: 'sRGB EOTF (100 nits SDR)'};
     Plotly.newPlot('srgbGraph', [{
-        x: encodedValues,
-        y: srgbEOTF,
+        x: srgbBrightness,
+        y: srgbBrightness.map(brightness => {
+            const linear = brightness / srgbPeak;
+            return TransferFunctions.sRGB.encode(linear);
+        }),
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
         line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
     }], srgbLayout, config);
     
     // PQ EOTF (absolute brightness)
+    const pqBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(10000) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     const pqLayout = {
         ...sdrLayout,
         title: 'PQ EOTF (ST.2084)',
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [0.1, Math.min(10000, peakBrightness * 1.2)],
-            type: 'log',
-            dtick: 1
+        xaxis: {
+            ...sdrLayout.xaxis,
+            range: [-1, 4],  // 0.1 to 10000 nits
+            tickvals: [0.1, 1, 10, 100, 1000, 10000],
+            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
         }
     };
-    const pqEOTF = encodedValues.map(v => {
-        // PQ EOTF: decode gives normalized 0-1, scale to 10000 nits
-        const normalized = TransferFunctions.PQ.decode(v);
-        return Math.max(0.01, normalized * 10000); // Ensure minimum for log scale
-    });
     Plotly.newPlot('pqGraph', [{
-        x: encodedValues,
-        y: pqEOTF,
+        x: pqBrightness,
+        y: pqBrightness.map(brightness => {
+            const normalized = brightness / 10000;
+            return TransferFunctions.PQ.encode(normalized);
+        }),
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
         line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
     }], pqLayout, config);
     
     // HLG EOTF (relative to display peak)
+    const hlgBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(peakBrightness) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     const hlgLayout = {
         ...sdrLayout,
-        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [0, peakBrightness * 1.2]
-        }
+        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`
     };
-    const hlgEOTF = encodedValues.map(v => {
-        // HLG EOTF: decode then apply system gamma and scale to display peak
-        const scene = TransferFunctions.HLG.decode(v);
-        // Apply system gamma (1.2 is typical)
-        const display = Math.pow(scene, 1.2);
-        return Math.max(0.01, display * peakBrightness); // Ensure minimum for log scale
-    });
     Plotly.newPlot('hlgGraph', [{
-        x: encodedValues,
-        y: hlgEOTF,
+        x: hlgBrightness,
+        y: hlgBrightness.map(brightness => {
+            // HLG inverse EOTF: normalize brightness
+            const normalized = brightness / peakBrightness;
+            return TransferFunctions.HLG.inverseEOTF(normalized);
+        }),
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
         line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+        hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
 }
 
@@ -282,7 +298,7 @@ function initializeSeparateOETFGraphs() {
     const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
     
     // sRGB graph (SDR only)
-    const srgbLayout = {...sdrLayout, title: 'sRGB Transfer Function (SDR)'};
+    const srgbLayout = {...sdrLayout, title: 'sRGB OETF (100 nits SDR)'};
     const srgbCurve = linearValues.map(v => TransferFunctions.sRGB.encode(v));
     Plotly.newPlot('srgbGraph', [{
         x: linearValues,
@@ -297,7 +313,7 @@ function initializeSeparateOETFGraphs() {
     // PQ graph (HDR - extends to 2.5x SDR)
     const pqLayout = {
         ...sdrLayout,
-        title: 'PQ (ST.2084) Transfer Function (HDR)',
+        title: 'PQ OETF (ST.2084)',
         xaxis: {
             ...sdrLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
@@ -323,7 +339,7 @@ function initializeSeparateOETFGraphs() {
     // HLG graph (HDR - extends to 5x SDR)
     const hlgLayout = {
         ...sdrLayout,
-        title: 'HLG (BT.2100) Transfer Function (HDR)',
+        title: 'HLG OETF (BT.2100)',
         xaxis: {
             ...sdrLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
@@ -355,21 +371,21 @@ function initializeCombinedEOTFGraph() {
         font: { color: '#e0e0e0', size: 11 },
         margin: { t: 40, r: 30, b: 50, l: 60 },
         xaxis: {
-            title: 'Encoded Signal Input (0=black, 1=max code)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1],
-            dtick: 0.2
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
             type: 'log',
             range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
-            tickmode: 'array',  // Manual tick specification for performance
+            tickmode: 'array',
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
+        },
+        yaxis: {
+            title: 'Digital Values (10-bit: 0-1023)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05],
+            dtick: 0.2
         },
         showlegend: true,
         legend: {
@@ -390,45 +406,58 @@ function initializeCombinedEOTFGraph() {
         displayModeBar: false
     };
     
-    const numPoints = 50; // Further reduced for log scale performance with EOTF
-    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Generate brightness values on log scale
+    const numPoints = 100;
+    const minBrightness = 0.01;
+    const maxBrightness = 10000;
+    const logMin = Math.log10(minBrightness);
+    const logMax = Math.log10(maxBrightness);
+    const brightnessValues = Array.from({length: numPoints}, (_, i) => {
+        const logValue = logMin + (logMax - logMin) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     
     const traces = [
         {
-            x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = TransferFunctions.sRGB.decode(v) * peakBrightness;
-                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            x: brightnessValues.filter(b => b <= 100),
+            y: brightnessValues.filter(b => b <= 100).map(brightness => {
+                // Inverse EOTF: given brightness, find signal value
+                // For sRGB, linear = brightness/100 (SDR peak), then encode
+                const linear = brightness / 100;
+                return TransferFunctions.sRGB.encode(linear);
             }),
             type: 'scatter',
             mode: 'lines',
-            name: `sRGB (${peakBrightness} nits)`,
+            name: 'sRGB (100 nits SDR)',
             line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         },
         {
-            x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = TransferFunctions.PQ.decode(v) * 10000;
-                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            x: brightnessValues,
+            y: brightnessValues.map(brightness => {
+                // PQ inverse: given brightness, find signal value
+                // PQ decode gives normalized 0-1 for 0-10000 nits
+                const normalized = brightness / 10000;
+                return TransferFunctions.PQ.encode(normalized);
             }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ (10000 nits)',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         },
         {
-            x: encodedValues,
-            y: encodedValues.map(v => {
-                const brightness = Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness;
-                return Math.max(0.1, brightness); // Clamp to 0.1 minimum for log scale
+            x: brightnessValues.filter(b => b <= peakBrightness),
+            y: brightnessValues.filter(b => b <= peakBrightness).map(brightness => {
+                // HLG inverse EOTF: normalize brightness
+                const normalized = brightness / peakBrightness;
+                return TransferFunctions.HLG.inverseEOTF(normalized);
             }),
             type: 'scatter',
             mode: 'lines',
             name: `HLG (${peakBrightness} nits)`,
             line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         }
     ];
     
@@ -468,7 +497,7 @@ function initializeCombinedGraph() {
             bgcolor: 'rgba(0,0,0,0.8)',
             font: {color: 'white'}
         },
-        title: 'All Transfer Functions'
+        title: 'OETF Comparison (Camera Encoding Curves)'
     };
     
     const config = {
@@ -581,8 +610,9 @@ function updateEOTFGraphs() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 100; // Reduced for better performance
-    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Generate brightness values on log scale
+    const numPoints = 100;
+    const minBrightness = 0.01;
     
     // Common layout settings
     const darkLayout = {
@@ -603,49 +633,68 @@ function updateEOTFGraphs() {
         }
     };
     
-    // sRGB EOTF
+    // sRGB EOTF - SDR standard is 100 nits
+    const srgbPeak = 100; // sRGB is SDR, always 100 nits
+    const srgbBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(srgbPeak) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     const srgbTraces = [];
     if (showCurves) {
         srgbTraces.push({
-            x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+            x: srgbBrightness,
+            y: srgbBrightness.map(brightness => {
+                const linear = brightness / srgbPeak;
+                return TransferFunctions.sRGB.encode(linear);
+            }),
             type: 'scatter',
             mode: 'lines',
             name: 'sRGB',
             line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         });
     }
     
     const srgbLayout = {
         ...darkLayout,
-        title: 'sRGB EOTF',
+        title: 'sRGB EOTF (100 nits SDR)',
         xaxis: {
-            title: 'Encoded Signal Input',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1]
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, peakBrightness]
+            type: 'log',
+            range: [-1, 2.5],  // 0.1 to ~300 nits
+            tickmode: 'array',
+            tickvals: [0.1, 1, 10, 100],
+            ticktext: ['0.1', '1', '10', '100']
+        },
+        yaxis: {
+            title: 'Digital Values (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
         }
     };
     Plotly.react('srgbGraph', srgbTraces, srgbLayout);
     
     // PQ EOTF
+    const pqBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(10000) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     const pqTraces = [];
     if (showCurves) {
         pqTraces.push({
-            x: encodedValues,
-            y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+            x: pqBrightness,
+            y: pqBrightness.map(brightness => {
+                const normalized = brightness / 10000;
+                return TransferFunctions.PQ.encode(normalized);
+            }),
             type: 'scatter',
             mode: 'lines',
             name: 'PQ',
             line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         });
     }
     
@@ -653,35 +702,43 @@ function updateEOTFGraphs() {
         ...darkLayout,
         title: 'PQ EOTF (ST.2084)',
         xaxis: {
-            title: 'Encoded Signal Input',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1]
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
             type: 'log',
+            range: [-1, 4],  // 0.1 to 10000 nits
             tickmode: 'array',
             tickvals: [0.1, 1, 10, 100, 1000, 10000],
             ticktext: ['0.1', '1', '10', '100', '1k', '10k']
+        },
+        yaxis: {
+            title: 'Digital Values (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
         }
     };
     Plotly.react('pqGraph', pqTraces, pqLayout);
     
     // HLG EOTF
+    const hlgBrightness = Array.from({length: numPoints}, (_, i) => {
+        const logValue = Math.log10(minBrightness) + (Math.log10(peakBrightness) - Math.log10(minBrightness)) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     const hlgTraces = [];
     if (showCurves) {
         hlgTraces.push({
-            x: encodedValues,
-            y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+            x: hlgBrightness,
+            y: hlgBrightness.map(brightness => {
+                // HLG inverse EOTF: normalize brightness
+                const normalized = brightness / peakBrightness;
+                return TransferFunctions.HLG.inverseEOTF(normalized);
+            }),
             type: 'scatter',
             mode: 'lines',
             name: 'HLG',
             line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+            hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
         });
     }
     
@@ -689,16 +746,20 @@ function updateEOTFGraphs() {
         ...darkLayout,
         title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
         xaxis: {
-            title: 'Encoded Signal Input',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1]
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, peakBrightness * 1.1]
+            type: 'log',
+            range: [-1, Math.log10(peakBrightness) + 0.5],
+            tickmode: 'array',
+            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
+            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
+        },
+        yaxis: {
+            title: 'Digital Values (0-1)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05]
         }
     };
     Plotly.react('hlgGraph', hlgTraces, hlgLayout);
@@ -760,7 +821,7 @@ function updateOETFGraphs() {
             y: 0.98,
             bgcolor: 'rgba(0,0,0,0.5)'
         },
-        title: 'sRGB Transfer Function',
+        title: 'sRGB OETF (100 nits SDR)',
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
@@ -794,7 +855,7 @@ function updateOETFGraphs() {
     
     const pqLayout = {
         ...darkLayout, 
-        title: 'PQ (ST.2084) Transfer Function (HDR)',
+        title: 'PQ OETF (ST.2084)',
         xaxis: {
             ...darkLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=SDR ref, 2.5=HDR peak)',
@@ -831,7 +892,7 @@ function updateOETFGraphs() {
     
     const hlgLayout = {
         ...darkLayout, 
-        title: 'HLG (BT.2100) Transfer Function (HDR)',
+        title: 'HLG OETF (BT.2100)',
         xaxis: {
             ...darkLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=SDR ref, 5=HDR peak)',
@@ -999,39 +1060,60 @@ function updateCombinedEOTFGraph() {
     const showCurves = document.getElementById('showCurves').checked;
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
-    const numPoints = 100; // Reduced for better performance
-    const encodedValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
+    // Generate brightness values on log scale
+    const numPoints = 100;
+    const minBrightness = 0.01;
+    const maxBrightness = 10000;
+    const logMin = Math.log10(minBrightness);
+    const logMax = Math.log10(maxBrightness);
+    const brightnessValues = Array.from({length: numPoints}, (_, i) => {
+        const logValue = logMin + (logMax - logMin) * i / (numPoints - 1);
+        return Math.pow(10, logValue);
+    });
     
     const traces = [];
     
     if (showCurves) {
         traces.push(
             {
-                x: encodedValues,
-                y: encodedValues.map(v => TransferFunctions.sRGB.decode(v) * peakBrightness),
+                x: brightnessValues.filter(b => b <= 100),
+                y: brightnessValues.filter(b => b <= 100).map(brightness => {
+                    // Inverse EOTF: given brightness, find signal value
+                    // sRGB is SDR, always 100 nits peak
+                    const linear = brightness / 100;
+                    return TransferFunctions.sRGB.encode(linear);
+                }),
                 type: 'scatter',
                 mode: 'lines',
-                name: `sRGB (${peakBrightness} nits)`,
+                name: 'sRGB (100 nits SDR)',
                 line: { color: '#00bcd4', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: encodedValues,
-                y: encodedValues.map(v => TransferFunctions.PQ.decode(v) * 10000),
+                x: brightnessValues,
+                y: brightnessValues.map(brightness => {
+                    // PQ inverse: given brightness, find signal value
+                    const normalized = brightness / 10000;
+                    return TransferFunctions.PQ.encode(normalized);
+                }),
                 type: 'scatter',
                 mode: 'lines',
                 name: 'PQ (10000 nits)',
                 line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
             },
             {
-                x: encodedValues,
-                y: encodedValues.map(v => Math.pow(TransferFunctions.HLG.decode(v), 1.2) * peakBrightness),
+                x: brightnessValues.filter(b => b <= peakBrightness),
+                y: brightnessValues.filter(b => b <= peakBrightness).map(brightness => {
+                    // HLG inverse EOTF: normalize brightness
+                    const normalized = brightness / peakBrightness;
+                    return TransferFunctions.HLG.inverseEOTF(normalized);
+                }),
                 type: 'scatter',
                 mode: 'lines',
                 name: `HLG (${peakBrightness} nits)`,
                 line: { color: '#9c27b0', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.0f} cd/m²<extra></extra>'
+                hovertemplate: 'Brightness: %{x:.1f} cd/m²<br>Signal: %{y:.3f}<extra></extra>'
             }
         );
     }
@@ -1042,18 +1124,21 @@ function updateCombinedEOTFGraph() {
         font: { color: '#e0e0e0', size: 11 },
         margin: { t: 40, r: 30, b: 50, l: 70 },
         xaxis: {
-            title: 'Encoded Signal Input (0=black, 1=max code)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1],
-            dtick: 0.2
-        },
-        yaxis: {
             title: 'Output Brightness (cd/m²)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0.1, Math.max(peakBrightness * 1.5, 10000)],
-            type: 'log'
+            type: 'log',
+            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
+            tickmode: 'array',
+            tickvals: [0.1, 1, 10, 100, 1000, 10000],
+            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
+        },
+        yaxis: {
+            title: 'Digital Values (10-bit: 0-1023)',
+            gridcolor: '#333',
+            zerolinecolor: '#555',
+            range: [0, 1.05],
+            dtick: 0.2
         },
         showlegend: true,
         legend: {
@@ -1203,7 +1288,7 @@ function updateCombinedOETFGraph() {
             bgcolor: 'rgba(0,0,0,0.8)',
             font: {color: 'white'}
         },
-        title: 'All Transfer Functions'
+        title: 'OETF Comparison (Camera Encoding Curves)'
     };
     
     Plotly.react('combinedGraph', traces, layout);
@@ -1457,7 +1542,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const peakBrightnessSelect = document.getElementById('peakBrightness');
     
     // File upload click
-    uploadArea.addEventListener('click', () => fileInput.click());
+    uploadArea.addEventListener('click', function(e) {
+        fileInput.click();
+    });
     
     // File input change
     fileInput.addEventListener('change', function(e) {
