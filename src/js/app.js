@@ -480,8 +480,8 @@ function initializeCombinedEOTFGraph() {
         {
             x: signalValues,
             y: signalValues.map(signal => {
-                // PQ EOTF: signal -> brightness in nits (relative to 100)
-                return TransferFunctions.PQ.decode(signal) * 100; // Convert to actual nits
+                // PQ EOTF: signal -> brightness (decode already returns nits)
+                return TransferFunctions.PQ.decode(signal);
             }),
             type: 'scatter',
             mode: 'lines',
@@ -807,8 +807,8 @@ function updateEOTFGraphs() {
         pqTraces.push({
             x: signalValues,
             y: signalValues.map(signal => {
-                const normalized = TransferFunctions.PQ.decode(signal);
-                return normalized * 10000;
+                // PQ.decode returns value where 1.0 = 100 nits
+                return TransferFunctions.PQ.decode(signal);
             }),
             type: 'scatter',
             mode: 'lines',
@@ -1359,9 +1359,8 @@ function updateCombinedEOTFGraph() {
             {
                 x: signalValues,
                 y: signalValues.map(signal => {
-                    // PQ EOTF: signal -> normalized -> brightness
-                    const normalized = TransferFunctions.PQ.decode(signal);
-                    return normalized * 10000; // PQ peak is 10000 nits
+                    // PQ EOTF: signal -> brightness (decode returns nits)
+                    return TransferFunctions.PQ.decode(signal);
                 }),
                 type: 'scatter',
                 mode: 'lines',
