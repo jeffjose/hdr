@@ -314,54 +314,55 @@ function initializeSeparateOETFGraphs() {
     
     const numPoints = 200;
     
-    // sRGB: Can only encode up to 1.0 (100 nits SDR)
+    // sRGB: Can only encode up to 100 nits SDR
     const srgbLayout = {
         ...baseLayout,
         title: 'sRGB OETF (SDR only)',
         xaxis: {
             ...baseLayout.xaxis,
-            title: 'Scene Light (0=black, 1=100 nits)',
-            range: [0, 2],
-            dtick: 0.5
+            title: 'Scene Light Intensity (nits)',
+            range: [0, 200],
+            dtick: 50
         }
     };
-    const srgbX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 2);
-    const srgbY = srgbX.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0); // Clips at 1
+    const srgbNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 200);
+    const srgbY = srgbNits.map(nits => {
+        const relative = nits / 100;
+        return relative <= 1 ? TransferFunctions.sRGB.encode(relative) : 1.0;
+    });
     
     Plotly.newPlot('srgbGraph', [{
-        x: srgbX,
+        x: srgbNits,
         y: srgbY,
         type: 'scatter',
         mode: 'lines',
         name: 'sRGB',
         line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'Scene: %{x:.2f} (≈%{text})<br>Signal: %{y:.3f}<extra></extra>',
-        text: srgbX.map(v => `${(v * 100).toFixed(0)} nits`)
+        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
     }], srgbLayout, config);
     
-    // PQ: Can encode up to 10,000 nits (100x SDR)
+    // PQ: Can encode up to 10,000 nits
     const pqLayout = {
         ...baseLayout,
         title: 'PQ OETF (ST.2084)',
         xaxis: {
             ...baseLayout.xaxis,
-            title: 'Scene Light (0=black, 1=100 nits, 100=10k nits)',
-            range: [0, 100],
-            dtick: 20
+            title: 'Scene Light Intensity (nits)',
+            range: [0, 10000],
+            dtick: 2000
         }
     };
-    const pqX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
-    const pqY = pqX.map(v => TransferFunctions.PQ.encode(v));
+    const pqNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 10000);
+    const pqY = pqNits.map(nits => TransferFunctions.PQ.encode(nits / 100));
     
     Plotly.newPlot('pqGraph', [{
-        x: pqX,
+        x: pqNits,
         y: pqY,
         type: 'scatter',
         mode: 'lines',
         name: 'PQ',
         line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'Scene: %{x:.1f} (≈%{text})<br>Signal: %{y:.3f}<extra></extra>',
-        text: pqX.map(v => `${(v * 100).toFixed(0)} nits`)
+        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
     }], pqLayout, config);
     
     // HLG: Relative encoding, can handle HDR
@@ -370,22 +371,22 @@ function initializeSeparateOETFGraphs() {
         title: 'HLG OETF (BT.2100)',
         xaxis: {
             ...baseLayout.xaxis,
-            title: 'Scene Light (0=black, 1=ref white, 12=12x ref)',
-            range: [0, 12],
-            dtick: 2
+            title: 'Scene Light Intensity (nits, relative)',
+            range: [0, 1200],
+            dtick: 200
         }
     };
-    const hlgX = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
-    const hlgY = hlgX.map(v => TransferFunctions.HLG.encode(v));
+    const hlgNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1200);
+    const hlgY = hlgNits.map(nits => TransferFunctions.HLG.encode(nits / 100));
     
     Plotly.newPlot('hlgGraph', [{
-        x: hlgX,
+        x: hlgNits,
         y: hlgY,
         type: 'scatter',
         mode: 'lines',
         name: 'HLG',
         line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'Scene: %{x:.1f}x ref<br>Signal: %{y:.3f}<extra></extra>'
+        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
     }], hlgLayout, config);
 }
 
@@ -505,11 +506,8 @@ function initializeCombinedGraph() {
             title: 'Scene Light Intensity (nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, 4], // log scale: 10^-1 (0.1) to 10^4 (10,000)
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
+            range: [0, 1000],
+            dtick: 100
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
@@ -557,12 +555,8 @@ function initializeCombinedGraph() {
     };
     
     const numPoints = 200;
-    // Create log-spaced points from 0.1 to 10,000 nits
-    const xNits = [];
-    for (let i = 0; i < numPoints; i++) {
-        const logValue = -1 + (i / (numPoints - 1)) * 5; // -1 to 4 in log space
-        xNits.push(Math.pow(10, logValue)); // Convert to actual nits
-    }
+    // Create linear points from 0 to 1000 nits  
+    const xNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1000);
     
     // Convert nits to our relative scale (1 = 100 nits)
     const xRelative = xNits.map(nits => nits / 100);
@@ -1484,12 +1478,8 @@ function updateCombinedOETFGraph() {
     const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
     
     const numPoints = 200;
-    // Create log-spaced points from 0.1 to 10,000 nits
-    const xNits = [];
-    for (let i = 0; i < numPoints; i++) {
-        const logValue = -1 + (i / (numPoints - 1)) * 5; // -1 to 4 in log space
-        xNits.push(Math.pow(10, logValue)); // Convert to actual nits
-    }
+    // Create linear points from 0 to 1000 nits  
+    const xNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1000);
     
     // Convert nits to our relative scale (1 = 100 nits)
     const xRelative = xNits.map(nits => nits / 100);
@@ -1533,7 +1523,7 @@ function updateCombinedOETFGraph() {
                 y: pqY,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'PQ (10,000 nits)',
+                name: 'PQ (ST.2084)',
                 line: { color: '#ff9800', width: 2 },
                 hovertemplate: 'PQ<br>Scene: %{x:.1f} nits<br>Signal: %{y:.3f}<extra></extra>'
             },
@@ -1615,11 +1605,8 @@ function updateCombinedOETFGraph() {
             title: 'Scene Light Intensity (nits)',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, 4], // log scale: 10^-1 (0.1) to 10^4 (10,000)
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
+            range: [0, 1000],
+            dtick: 100
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
