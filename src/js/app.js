@@ -161,8 +161,8 @@ function initializeSeparateEOTFGraphs() {
       {
         x: signalValues,
         y: signalValues.map((signal) => {
-          const normalized = TransferFunctions.PQ.decode(signal);
-          return normalized * 10000; // Convert to cd/m²
+          // PQ.decode returns value where 1.0 = 100 nits
+          return TransferFunctions.PQ.decode(signal) * 100; // Convert to cd/m²
         }),
         type: "scatter",
         mode: "lines",
@@ -197,10 +197,8 @@ function initializeSeparateEOTFGraphs() {
       {
         x: signalValues,
         y: signalValues.map((signal) => {
-          // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
-          const sceneLight = TransferFunctions.HLG.decode(signal);
-          const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
-          return normalizedDisplay * peakBrightness; // Scale to peak brightness
+          // HLG EOTF: Use the proper signalToNits function which handles the complete EOTF
+          return TransferFunctions.HLG.signalToNits(signal);
         }),
         type: "scatter",
         mode: "lines",
@@ -456,8 +454,8 @@ function initializeCombinedEOTFGraph() {
     {
       x: signalValues,
       y: signalValues.map((signal) => {
-        // PQ EOTF: signal -> brightness (decode already returns nits)
-        return TransferFunctions.PQ.decode(signal);
+        // PQ EOTF: signal -> brightness (decode returns value where 1.0 = 100 nits)
+        return TransferFunctions.PQ.decode(signal) * 100;
       }),
       type: "scatter",
       mode: "lines",
@@ -470,7 +468,7 @@ function initializeCombinedEOTFGraph() {
       x: signalValues,
       y: signalValues.map((signal) => {
         // HLG EOTF: signal -> display brightness
-        return HLG.signalToNits(signal, peakBrightness);
+        return TransferFunctions.HLG.signalToNits(signal);
       }),
       type: "scatter",
       mode: "lines",
@@ -1182,13 +1180,10 @@ function highlightPixelOnGraphs(pixel) {
           gY = [TransferFunctions.PQ.decode(pixel.srgb.g)];
           bY = [TransferFunctions.PQ.decode(pixel.srgb.b)];
         } else {
-          // HLG
-          const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
-          const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
-          const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
-          rY = [Math.pow(rScene, 1.2) * peakBrightness];
-          gY = [Math.pow(gScene, 1.2) * peakBrightness];
-          bY = [Math.pow(bScene, 1.2) * peakBrightness];
+          // HLG - use the proper signalToNits function for consistency
+          rY = [TransferFunctions.HLG.signalToNits(pixel.srgb.r)];
+          gY = [TransferFunctions.HLG.signalToNits(pixel.srgb.g)];
+          bY = [TransferFunctions.HLG.signalToNits(pixel.srgb.b)];
         }
       } else {
         // OETF mode: show linear values on X-axis, encoded on Y-axis
@@ -1313,9 +1308,9 @@ function updateCombinedGraphHighlight(pixel) {
         } else {
           // HLG
           updates.y.push(
-            [HLG.signalToNits(pixel.srgb.r, peakBrightness)],
-            [HLG.signalToNits(pixel.srgb.g, peakBrightness)],
-            [HLG.signalToNits(pixel.srgb.b, peakBrightness)]
+            [TransferFunctions.HLG.signalToNits(pixel.srgb.r)],
+            [TransferFunctions.HLG.signalToNits(pixel.srgb.g)],
+            [TransferFunctions.HLG.signalToNits(pixel.srgb.b)]
           );
         }
       });
@@ -1495,17 +1490,14 @@ function updateCombinedEOTFGraph() {
         yB = currentHoverPixel.linear.b * 100;
       } else if (type === "PQ") {
         // PQ decode already returns values where 1.0 = 100 nits
-        yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r);
-        yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g);
-        yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b);
+        yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 100;
+        yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 100;
+        yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 100;
       } else {
-        // HLG
-        const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
-        const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);
-        const bScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.b);
-        yR = Math.pow(rScene, 1.2) * peakBrightness;
-        yG = Math.pow(gScene, 1.2) * peakBrightness;
-        yB = Math.pow(bScene, 1.2) * peakBrightness;
+        // HLG - use the proper signalToNits function for consistency
+        yR = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.r);
+        yG = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.g);
+        yB = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.b);
       }
 
       traces.push(
