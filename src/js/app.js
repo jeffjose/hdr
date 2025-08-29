@@ -525,8 +525,8 @@ function initializeCombinedGraph() {
             title: 'Linear Intensity',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 12],
-            dtick: 2,
+            range: [0, 6],
+            dtick: 1,
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
@@ -1088,8 +1088,8 @@ function updateOETFGraphs() {
         xaxis: {
             ...darkLayout.xaxis,
             title: 'Linear Light Input (0=black, 1=ref white, 12=peak)',
-            range: [0, 12],
-            dtick: 2,
+            range: [0, 6],
+            dtick: 1,
             rangemode: 'tozero',
             fixedrange: false
         },
@@ -1636,8 +1636,8 @@ function updateCombinedOETFGraph() {
             title: 'Linear Intensity',
             gridcolor: '#333',
             zerolinecolor: '#555',
-            range: [0, 12],
-            dtick: 2,
+            range: [0, 6],
+            dtick: 1,
             autorange: false,
             fixedrange: false  // Allow zooming via axis drag
         },
