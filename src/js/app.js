@@ -518,17 +518,18 @@ function initializeCombinedGraph() {
             zerolinecolor: '#555',
             range: [0, 12],
             dtick: 2,
-            autorange: false,  // Disable autorange
-            fixedrange: false  // Allow zooming but we'll constrain it
+            autorange: false,
+            fixedrange: false  // Allow zooming via axis drag
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1.05],
-            autorange: false,  // Disable autorange
-            fixedrange: false  // Allow zooming but we'll constrain it
+            autorange: false,
+            fixedrange: false  // Allow zooming via axis drag
         },
+        dragmode: false,  // Disable dragging on the plot area
         showlegend: true,
         legend: {
             x: 0.02,
@@ -1629,17 +1630,18 @@ function updateCombinedOETFGraph() {
             zerolinecolor: '#555',
             range: [0, 12],
             dtick: 2,
-            autorange: false,  // Disable autorange
-            fixedrange: false  // Allow zooming but we'll constrain it
+            autorange: false,
+            fixedrange: false  // Allow zooming via axis drag
         },
         yaxis: {
             title: 'Encoded Signal (0-1)',
             gridcolor: '#333',
             zerolinecolor: '#555',
             range: [0, 1.05],
-            autorange: false,  // Disable autorange
-            fixedrange: false  // Allow zooming but we'll constrain it
+            autorange: false,
+            fixedrange: false  // Allow zooming via axis drag
         },
+        dragmode: false,  // Disable dragging on the plot area
         yaxis2: {
             // title: 'Histogram (%)',
             // titlefont: { color: '#888' },
@@ -1669,31 +1671,39 @@ function updateCombinedOETFGraph() {
         title: 'OETF (Camera Encoding Curves)'
     };
     
-    Plotly.react('combinedGraph', traces, layout).then(function() {
-        // Add event handler to constrain axis ranges
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        scrollZoom: false,  // Disable scroll zoom
+        doubleClick: 'reset',  // Double-click resets to original view
+        modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d', 'zoom2d'],  // Remove pan and zoom tools
+        modeBarButtonsToAdd: [],
+        displaylogo: false
+    };
+    
+    Plotly.react('combinedGraph', traces, layout, config).then(function() {
+        // Add event handler to constrain axis ranges (as backup for zoom operations)
         const graphDiv = document.getElementById('combinedGraph');
         graphDiv.on('plotly_relayout', function(eventdata) {
             let update = {};
             let needsUpdate = false;
             
-            // Check and constrain x-axis
-            if (eventdata['xaxis.range[0]'] < 0 || eventdata['xaxis.range']) {
-                const xRange = eventdata['xaxis.range'] || [eventdata['xaxis.range[0]'], eventdata['xaxis.range[1]']];
-                if (xRange && xRange[0] < 0) {
-                    update['xaxis.range[0]'] = 0;
-                    update['xaxis.range[1]'] = xRange[1];
-                    needsUpdate = true;
+            // Check and constrain x-axis (for zoom operations)
+            if (eventdata['xaxis.range[0]'] !== undefined && eventdata['xaxis.range[0]'] < 0) {
+                update['xaxis.range[0]'] = 0;
+                if (eventdata['xaxis.range[1]'] !== undefined) {
+                    update['xaxis.range[1]'] = eventdata['xaxis.range[1]'];
                 }
+                needsUpdate = true;
             }
             
-            // Check and constrain y-axis
-            if (eventdata['yaxis.range[0]'] < 0 || eventdata['yaxis.range']) {
-                const yRange = eventdata['yaxis.range'] || [eventdata['yaxis.range[0]'], eventdata['yaxis.range[1]']];
-                if (yRange && yRange[0] < 0) {
-                    update['yaxis.range[0]'] = 0;
-                    update['yaxis.range[1]'] = yRange[1];
-                    needsUpdate = true;
+            // Check and constrain y-axis (for zoom operations)
+            if (eventdata['yaxis.range[0]'] !== undefined && eventdata['yaxis.range[0]'] < 0) {
+                update['yaxis.range[0]'] = 0;
+                if (eventdata['yaxis.range[1]'] !== undefined) {
+                    update['yaxis.range[1]'] = eventdata['yaxis.range[1]'];
                 }
+                needsUpdate = true;
             }
             
             if (needsUpdate) {
