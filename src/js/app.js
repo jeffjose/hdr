@@ -1,20 +1,20 @@
 // Import transfer function modules
-import { sRGB } from './srgb.js';
-import { PQ } from './pq.js';
-import { HLG } from './hlg.js';
+import { sRGB } from "./srgb.js";
+import { PQ } from "./pq.js";
+import { HLG } from "./hlg.js";
 
 // Create unified TransferFunctions object for backward compatibility
 // Note: HLG functions that need peakBrightness will be wrapped
 const TransferFunctions = {
-    sRGB: sRGB,
-    PQ: PQ,
-    HLG: {
-        encode: HLG.encode,
-        decode: HLG.decode,
-        // Wrapper for HLG functions that need peakBrightness
-        signalToNits: (signal) => HLG.signalToNits(signal, peakBrightness),
-        nitsToSignal: (nits) => HLG.nitsToSignal(nits, peakBrightness)
-    }
+  sRGB: sRGB,
+  PQ: PQ,
+  HLG: {
+    encode: HLG.encode,
+    decode: HLG.decode,
+    // Wrapper for HLG functions that need peakBrightness
+    signalToNits: (signal) => HLG.signalToNits(signal, peakBrightness),
+    nitsToSignal: (nits) => HLG.nitsToSignal(nits, peakBrightness)
+  }
 };
 
 // Global variables
@@ -22,8 +22,8 @@ let imageData = null;
 let canvas = null;
 let ctx = null;
 let currentHoverPixel = null;
-let viewMode = 'combined'; // 'separate' or 'combined'
-let transferMode = localStorage.getItem('transferMode') || 'eotf'; // 'oetf' or 'eotf'
+let viewMode = "combined"; // 'separate' or 'combined'
+let transferMode = localStorage.getItem("transferMode") || "eotf"; // 'oetf' or 'eotf'
 let peakBrightness = 1000; // Peak brightness in nits
 let histogram = null; // Store histogram data
 let updateGraphTimeout = null; // For debouncing graph updates
@@ -32,2667 +32,3047 @@ let hdrMode = false; // HDR encoding toggle state
 
 // Initialize graphs
 function initializeGraphs() {
-    if (transferMode === 'eotf') {
-        initializeEOTFGraphs();
-    } else {
-        initializeOETFGraphs();
-    }
+  if (transferMode === "eotf") {
+    initializeEOTFGraphs();
+  } else {
+    initializeOETFGraphs();
+  }
 }
 
 // Initialize EOTF graphs (encoded input -> brightness output)
 function initializeEOTFGraphs() {
-    // Only initialize graphs based on current view mode
-    if (viewMode === 'combined') {
-        initializeCombinedEOTFGraph();
-    } else {
-        initializeSeparateEOTFGraphs();
-    }
+  // Only initialize graphs based on current view mode
+  if (viewMode === "combined") {
+    initializeCombinedEOTFGraph();
+  } else {
+    initializeSeparateEOTFGraphs();
+  }
 }
 
 function initializeSeparateEOTFGraphs() {
-    const sdrLayout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 30, r: 30, b: 60, l: 60 },
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, Math.log10(peakBrightness) + 0.5],
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
-            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        }
-    };
-    
-    const config = {
-        responsive: true,
-        displayModeBar: false,
-        displaylogo: false,
-        modeBarButtonsToRemove: ['toImage']
-    };
-    
-    // Generate signal values (0-1)
-    const numPoints = 100;
-    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-    
-    // sRGB EOTF - SDR standard is 100 nits
-    const srgbPeak = 100; // sRGB is SDR, always 100 nits
-    const srgbLayout = {...sdrLayout, 
-        title: 'sRGB EOTF (100 nits SDR)',
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [-1, Math.log10(srgbPeak) + 0.5],
-            tickvals: [0.1, 1, 10, 100],
-            ticktext: ['0.1', '1', '10', '100']
-        }
-    };
-    Plotly.newPlot('srgbGraph', [{
+  const sdrLayout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 30, r: 30, b: 60, l: 60 },
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05]
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, Math.log10(peakBrightness) + 0.5],
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(
+        (v) => v <= peakBrightness * 10
+      ),
+      ticktext: [0.1, 1, 10, 100, 1000, 10000]
+        .filter((v) => v <= peakBrightness * 10)
+        .map((v) => (v < 1000 ? String(v) : `${v / 1000}k`))
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
+    }
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: false,
+    displaylogo: false,
+    modeBarButtonsToRemove: ["toImage"]
+  };
+
+  // Generate signal values (0-1)
+  const numPoints = 100;
+  const signalValues = Array.from(
+    { length: numPoints },
+    (_, i) => i / (numPoints - 1)
+  );
+
+  // sRGB EOTF - SDR standard is 100 nits
+  const srgbPeak = 100; // sRGB is SDR, always 100 nits
+  const srgbLayout = {
+    ...sdrLayout,
+    title: "sRGB EOTF (100 nits SDR)",
+    yaxis: {
+      ...sdrLayout.yaxis,
+      range: [-1, Math.log10(srgbPeak) + 0.5],
+      tickvals: [0.1, 1, 10, 100],
+      ticktext: ["0.1", "1", "10", "100"]
+    }
+  };
+  Plotly.newPlot(
+    "srgbGraph",
+    [
+      {
         x: signalValues,
-        y: signalValues.map(signal => {
-            const linear = TransferFunctions.sRGB.decode(signal);
-            return linear * srgbPeak; // Convert to cd/m²
+        y: signalValues.map((signal) => {
+          const linear = TransferFunctions.sRGB.decode(signal);
+          return linear * srgbPeak; // Convert to cd/m²
         }),
-        type: 'scatter',
-        mode: 'lines',
-        name: 'sRGB',
-        line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-    }], srgbLayout, config);
-    
-    // PQ EOTF (absolute brightness)
-    const pqLayout = {
-        ...sdrLayout,
-        title: 'PQ EOTF (ST.2084)',
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [-1, 4],  // 0.1 to 10000 nits
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
-        }
-    };
-    Plotly.newPlot('pqGraph', [{
+        type: "scatter",
+        mode: "lines",
+        name: "sRGB",
+        line: { color: "#00bcd4", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      }
+    ],
+    srgbLayout,
+    config
+  );
+
+  // PQ EOTF (absolute brightness)
+  const pqLayout = {
+    ...sdrLayout,
+    title: "PQ EOTF (ST.2084)",
+    yaxis: {
+      ...sdrLayout.yaxis,
+      range: [-1, 4], // 0.1 to 10000 nits
+      tickvals: [0.1, 1, 10, 100, 1000, 10000],
+      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+    }
+  };
+  Plotly.newPlot(
+    "pqGraph",
+    [
+      {
         x: signalValues,
-        y: signalValues.map(signal => {
-            const normalized = TransferFunctions.PQ.decode(signal);
-            return normalized * 10000; // Convert to cd/m²
+        y: signalValues.map((signal) => {
+          const normalized = TransferFunctions.PQ.decode(signal);
+          return normalized * 10000; // Convert to cd/m²
         }),
-        type: 'scatter',
-        mode: 'lines',
-        name: 'PQ',
-        line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-    }], pqLayout, config);
-    
-    // HLG EOTF (relative to display peak)
-    const hlgLayout = {
-        ...sdrLayout,
-        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
-        yaxis: {
-            ...sdrLayout.yaxis,
-            range: [-1, Math.log10(peakBrightness) + 0.5],
-            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
-            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
-        }
-    };
-    Plotly.newPlot('hlgGraph', [{
+        type: "scatter",
+        mode: "lines",
+        name: "PQ",
+        line: { color: "#ff9800", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      }
+    ],
+    pqLayout,
+    config
+  );
+
+  // HLG EOTF (relative to display peak)
+  const hlgLayout = {
+    ...sdrLayout,
+    title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
+    yaxis: {
+      ...sdrLayout.yaxis,
+      range: [-1, Math.log10(peakBrightness) + 0.5],
+      tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(
+        (v) => v <= peakBrightness * 10
+      ),
+      ticktext: [0.1, 1, 10, 100, 1000, 10000]
+        .filter((v) => v <= peakBrightness * 10)
+        .map((v) => (v < 1000 ? String(v) : `${v / 1000}k`))
+    }
+  };
+  Plotly.newPlot(
+    "hlgGraph",
+    [
+      {
         x: signalValues,
-        y: signalValues.map(signal => {
-            // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
-            const sceneLight = TransferFunctions.HLG.decode(signal);
-            const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
-            return normalizedDisplay * peakBrightness; // Scale to peak brightness
+        y: signalValues.map((signal) => {
+          // HLG EOTF: Signal → Inverse OETF → Scene light → System gamma → Display light
+          const sceneLight = TransferFunctions.HLG.decode(signal);
+          const normalizedDisplay = Math.pow(sceneLight, 1.2); // Apply system gamma
+          return normalizedDisplay * peakBrightness; // Scale to peak brightness
         }),
-        type: 'scatter',
-        mode: 'lines',
-        name: 'HLG',
-        line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-    }], hlgLayout, config);
+        type: "scatter",
+        mode: "lines",
+        name: "HLG",
+        line: { color: "#9c27b0", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      }
+    ],
+    hlgLayout,
+    config
+  );
 }
 
 // Initialize OETF graphs (brightness input -> encoded output)
 function initializeOETFGraphs() {
-    // Only initialize graphs based on current view mode
-    if (viewMode === 'combined') {
-        initializeCombinedGraph();
-    } else {
-        initializeSeparateOETFGraphs();
-    }
+  // Only initialize graphs based on current view mode
+  if (viewMode === "combined") {
+    initializeCombinedGraph();
+  } else {
+    initializeSeparateOETFGraphs();
+  }
 }
 
 function initializeSeparateOETFGraphs() {
-    const baseLayout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 30, r: 30, b: 60, l: 60 },
-        xaxis: {
-            title: 'Scene Light Intensity (Linear)',
-            gridcolor: '#333',
-            zerolinecolor: '#555'
-        },
-        yaxis: {
-            title: 'Encoded Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        }
-    };
-    
-    const config = {
-        responsive: true,
-        displayModeBar: false,
-        displaylogo: false,
-        modeBarButtonsToRemove: ['toImage']
-    };
-    
-    const numPoints = 200;
-    
-    // sRGB: Can only encode up to 100 nits SDR
-    const srgbLayout = {
-        ...baseLayout,
-        title: 'sRGB OETF (SDR only)',
-        xaxis: {
-            ...baseLayout.xaxis,
-            title: 'Scene Light Intensity (nits)',
-            range: [0, 200],
-            dtick: 50
-        }
-    };
-    const srgbNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 200);
-    const srgbY = srgbNits.map(nits => {
-        const relative = nits / 100;
-        return relative <= 1 ? TransferFunctions.sRGB.encode(relative) : 1.0;
-    });
-    
-    Plotly.newPlot('srgbGraph', [{
+  const baseLayout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 30, r: 30, b: 60, l: 60 },
+    xaxis: {
+      title: "Scene Light Intensity (Linear)",
+      gridcolor: "#333",
+      zerolinecolor: "#555"
+    },
+    yaxis: {
+      title: "Encoded Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05]
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
+    }
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: false,
+    displaylogo: false,
+    modeBarButtonsToRemove: ["toImage"]
+  };
+
+  const numPoints = 200;
+
+  // sRGB: Can only encode up to 100 nits SDR
+  const srgbLayout = {
+    ...baseLayout,
+    title: "sRGB OETF (SDR only)",
+    xaxis: {
+      ...baseLayout.xaxis,
+      title: "Scene Light Intensity (nits)",
+      range: [0, 200],
+      dtick: 50
+    }
+  };
+  const srgbNits = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 200
+  );
+  const srgbY = srgbNits.map((nits) => {
+    const relative = nits / 100;
+    return relative <= 1 ? TransferFunctions.sRGB.encode(relative) : 1.0;
+  });
+
+  Plotly.newPlot(
+    "srgbGraph",
+    [
+      {
         x: srgbNits,
         y: srgbY,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'sRGB',
-        line: { color: '#00bcd4', width: 2 },
-        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
-    }], srgbLayout, config);
-    
-    // PQ: Can encode up to 10,000 nits
-    const pqLayout = {
-        ...baseLayout,
-        title: 'PQ OETF (ST.2084)',
-        xaxis: {
-            ...baseLayout.xaxis,
-            title: 'Scene Light Intensity (nits)',
-            range: [0, 10000],
-            dtick: 2000
-        }
-    };
-    const pqNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 10000);
-    const pqY = pqNits.map(nits => TransferFunctions.PQ.encode(nits / 100));
-    
-    Plotly.newPlot('pqGraph', [{
+        type: "scatter",
+        mode: "lines",
+        name: "sRGB",
+        line: { color: "#00bcd4", width: 2 },
+        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      }
+    ],
+    srgbLayout,
+    config
+  );
+
+  // PQ: Can encode up to 10,000 nits
+  const pqLayout = {
+    ...baseLayout,
+    title: "PQ OETF (ST.2084)",
+    xaxis: {
+      ...baseLayout.xaxis,
+      title: "Scene Light Intensity (nits)",
+      range: [0, 10000],
+      dtick: 2000
+    }
+  };
+  const pqNits = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 10000
+  );
+  const pqY = pqNits.map((nits) => TransferFunctions.PQ.encode(nits / 100));
+
+  Plotly.newPlot(
+    "pqGraph",
+    [
+      {
         x: pqNits,
         y: pqY,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'PQ',
-        line: { color: '#ff9800', width: 2 },
-        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
-    }], pqLayout, config);
-    
-    // HLG: Relative encoding, can handle HDR
-    const hlgLayout = {
-        ...baseLayout,
-        title: 'HLG OETF (BT.2100)',
-        xaxis: {
-            ...baseLayout.xaxis,
-            title: 'Scene Light Intensity (nits, relative)',
-            range: [0, 1200],
-            dtick: 200
-        }
-    };
-    const hlgNits = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 1200);
-    const hlgY = hlgNits.map(nits => TransferFunctions.HLG.encode(nits / 100));
-    
-    Plotly.newPlot('hlgGraph', [{
+        type: "scatter",
+        mode: "lines",
+        name: "PQ",
+        line: { color: "#ff9800", width: 2 },
+        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      }
+    ],
+    pqLayout,
+    config
+  );
+
+  // HLG: Relative encoding, can handle HDR
+  const hlgLayout = {
+    ...baseLayout,
+    title: "HLG OETF (BT.2100)",
+    xaxis: {
+      ...baseLayout.xaxis,
+      title: "Scene Light Intensity (nits, relative)",
+      range: [0, 1200],
+      dtick: 200
+    }
+  };
+  const hlgNits = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 1200
+  );
+  const hlgY = hlgNits.map((nits) => TransferFunctions.HLG.encode(nits / 100));
+
+  Plotly.newPlot(
+    "hlgGraph",
+    [
+      {
         x: hlgNits,
         y: hlgY,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'HLG',
-        line: { color: '#9c27b0', width: 2 },
-        hovertemplate: 'Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>'
-    }], hlgLayout, config);
+        type: "scatter",
+        mode: "lines",
+        name: "HLG",
+        line: { color: "#9c27b0", width: 2 },
+        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      }
+    ],
+    hlgLayout,
+    config
+  );
 }
 
 // Initialize combined EOTF graph
 function initializeCombinedEOTFGraph() {
-    const layout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 40, r: 30, b: 60, l: 70 },
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            dtick: 0.2
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        },
-        title: 'EOTF (Display Response Curves)'
-    };
-    
-    const config = {
-        responsive: true,
-        displayModeBar: false
-    };
-    
-    // Generate signal values (0-1)
-    const numPoints = 100;
-    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-    
-    const traces = [
-        {
-            x: signalValues,
-            y: signalValues.map(signal => {
-                // sRGB EOTF: signal -> linear -> brightness
-                const linear = TransferFunctions.sRGB.decode(signal);
-                return linear * 100; // sRGB peak is 100 nits
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'sRGB (100 nits SDR)',
-            line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        },
-        {
-            x: signalValues,
-            y: signalValues.map(signal => {
-                // PQ EOTF: signal -> brightness (decode already returns nits)
-                return TransferFunctions.PQ.decode(signal);
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'PQ (10000 nits)',
-            line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        },
-        {
-            x: signalValues,
-            y: signalValues.map(signal => {
-                // HLG EOTF: signal -> display brightness
-                return HLG.signalToNits(signal, peakBrightness);
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: `HLG (${peakBrightness} nits)`,
-            line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        }
-    ];
-    
-    console.time('Plotly.newPlot-EOTF');
-    Plotly.newPlot('combinedGraph', traces, layout, config);
-    console.timeEnd('Plotly.newPlot-EOTF');
+  const layout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 40, r: 30, b: 60, l: 70 },
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05],
+      dtick: 0.2
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, 4], // Log scale: 10^-1 (0.1) to 10^4 (10000)
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100, 1000, 10000],
+      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
+    },
+    title: "EOTF (Display Response Curves)"
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: false
+  };
+
+  // Generate signal values (0-1)
+  const numPoints = 100;
+  const signalValues = Array.from(
+    { length: numPoints },
+    (_, i) => i / (numPoints - 1)
+  );
+
+  const traces = [
+    {
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        // sRGB EOTF: signal -> linear -> brightness
+        const linear = TransferFunctions.sRGB.decode(signal);
+        return linear * 100; // sRGB peak is 100 nits
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: "sRGB (100 nits SDR)",
+      line: { color: "#00bcd4", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    },
+    {
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        // PQ EOTF: signal -> brightness (decode already returns nits)
+        return TransferFunctions.PQ.decode(signal);
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: "PQ (10000 nits)",
+      line: { color: "#ff9800", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    },
+    {
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        // HLG EOTF: signal -> display brightness
+        return HLG.signalToNits(signal, peakBrightness);
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: `HLG (${peakBrightness} nits)`,
+      line: { color: "#9c27b0", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    }
+  ];
+
+  console.time("Plotly.newPlot-EOTF");
+  Plotly.newPlot("combinedGraph", traces, layout, config);
+  console.timeEnd("Plotly.newPlot-EOTF");
 }
 
 // Initialize combined OETF graph
 function initializeCombinedGraph() {
-    const layout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 40, r: 30, b: 60, l: 70 },
-        xaxis: {
-            title: 'Linear Intensity',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 6],
-            // dtick removed - Plotly will auto-adjust based on zoom
-            autorange: false,
-            fixedrange: false  // Allow zooming via axis drag
-        },
-        yaxis: {
-            title: 'Encoded Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            // dtick removed - Plotly will auto-adjust based on zoom
-            autorange: false,
-            fixedrange: false  // Allow zooming via axis drag
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        },
-        title: 'OETF (Opto-Electronic Transfer Functions)',
-        annotations: [
-            {
-                x: 1,
-                y: 1.0,
-                xref: 'x',
-                yref: 'y',
-                text: 'Reference<br>White',
-                showarrow: true,
-                arrowhead: 2,
-                arrowsize: 1,
-                arrowwidth: 1,
-                arrowcolor: '#666',
-                ax: 30,
-                ay: -30,
-                font: { size: 10, color: '#999' }
-            }
-        ]
-    };
-    
-    const config = {
-        responsive: true,
-        displayModeBar: false
-    };
-    
-    const numPoints = 200;
-    // Create linear points from 0 to 12 (relative intensity)
-    const xLinear = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
-    
-    // sRGB: Clips at 1.0
-    const srgbY = xLinear.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
-    
-    // HLG: Can encode the full range  
-    const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
-    
-    // PQ: For comparison, though it uses absolute scale
-    const pqY = xLinear.map(v => TransferFunctions.PQ.encode(v));
-    
-    const traces = [
-        {
-            x: xLinear,
-            y: srgbY,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'sRGB',
-            line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
-        },
-        {
-            x: xLinear,
-            y: hlgY,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'HLG',
-            line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
-        },
-        {
-            x: xLinear,
-            y: pqY,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'PQ (ST.2084)',
-            line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
-            text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
-        }
-    ];
-    
-    Plotly.newPlot('combinedGraph', traces, layout, config);
+  const layout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 40, r: 30, b: 60, l: 70 },
+    xaxis: {
+      title: "Linear Intensity",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 6],
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
+    },
+    yaxis: {
+      title: "Encoded Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05],
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
+    },
+    title: "OETF (Opto-Electronic Transfer Functions)",
+    annotations: [
+      {
+        x: 1,
+        y: 1.0,
+        xref: "x",
+        yref: "y",
+        text: "Reference<br>White",
+        showarrow: true,
+        arrowhead: 2,
+        arrowsize: 1,
+        arrowwidth: 1,
+        arrowcolor: "#666",
+        ax: 30,
+        ay: -30,
+        font: { size: 10, color: "#999" }
+      }
+    ]
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: false
+  };
+
+  const numPoints = 200;
+  // Create linear points from 0 to 12 (relative intensity)
+  const xLinear = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 12
+  );
+
+  // sRGB: Clips at 1.0
+  const srgbY = xLinear.map((v) =>
+    v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0
+  );
+
+  // HLG: Can encode the full range
+  const hlgY = xLinear.map((v) => TransferFunctions.HLG.encode(v));
+
+  // PQ: For comparison, though it uses absolute scale
+  const pqY = xLinear.map((v) => TransferFunctions.PQ.encode(v));
+
+  const traces = [
+    {
+      x: xLinear,
+      y: srgbY,
+      type: "scatter",
+      mode: "lines",
+      name: "sRGB",
+      line: { color: "#00bcd4", width: 2 },
+      hovertemplate:
+        "sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+    },
+    {
+      x: xLinear,
+      y: hlgY,
+      type: "scatter",
+      mode: "lines",
+      name: "HLG",
+      line: { color: "#9c27b0", width: 2 },
+      hovertemplate:
+        "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+    },
+    {
+      x: xLinear,
+      y: pqY,
+      type: "scatter",
+      mode: "lines",
+      name: "PQ (ST.2084)",
+      line: { color: "#ff9800", width: 2 },
+      hovertemplate:
+        "PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
+      text: xLinear.map((v) => `${(v * 100).toFixed(0)} nits`)
+    }
+  ];
+
+  Plotly.newPlot("combinedGraph", traces, layout, config);
 }
 
 // Calculate histogram from image data
 function calculateHistogram(imageData) {
-    const bins = 100; // Number of histogram bins
-    const histogramR = new Array(bins).fill(0);
-    const histogramG = new Array(bins).fill(0);
-    const histogramB = new Array(bins).fill(0);
-    const histogramLuminance = new Array(bins).fill(0);
-    
-    const data = imageData.data;
-    const totalPixels = imageData.width * imageData.height;
-    
-    for (let i = 0; i < data.length; i += 4) {
-        // Get sRGB values (0-1)
-        const srgb = {
-            r: data[i] / 255,
-            g: data[i + 1] / 255,
-            b: data[i + 2] / 255
-        };
-        
-        // Convert to linear
-        const linear = {
-            r: TransferFunctions.sRGB.decode(srgb.r),
-            g: TransferFunctions.sRGB.decode(srgb.g),
-            b: TransferFunctions.sRGB.decode(srgb.b)
-        };
-        
-        // Calculate luminance (using BT.709 coefficients)
-        const luminance = 0.2126 * linear.r + 0.7152 * linear.g + 0.0722 * linear.b;
-        
-        // Determine bin index (0 to bins-1)
-        const binR = Math.min(Math.floor(linear.r * bins), bins - 1);
-        const binG = Math.min(Math.floor(linear.g * bins), bins - 1);
-        const binB = Math.min(Math.floor(linear.b * bins), bins - 1);
-        const binL = Math.min(Math.floor(luminance * bins), bins - 1);
-        
-        histogramR[binR]++;
-        histogramG[binG]++;
-        histogramB[binB]++;
-        histogramLuminance[binL]++;
-    }
-    
-    // Normalize histograms (convert to percentages)
-    const normalize = (hist) => hist.map(count => (count / totalPixels) * 100);
-    
-    return {
-        r: normalize(histogramR),
-        g: normalize(histogramG),
-        b: normalize(histogramB),
-        luminance: normalize(histogramLuminance),
-        bins: bins,
-        binWidth: 1 / bins
+  const bins = 100; // Number of histogram bins
+  const histogramR = new Array(bins).fill(0);
+  const histogramG = new Array(bins).fill(0);
+  const histogramB = new Array(bins).fill(0);
+  const histogramLuminance = new Array(bins).fill(0);
+
+  const data = imageData.data;
+  const totalPixels = imageData.width * imageData.height;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Get sRGB values (0-1)
+    const srgb = {
+      r: data[i] / 255,
+      g: data[i + 1] / 255,
+      b: data[i + 2] / 255
     };
+
+    // Convert to linear
+    const linear = {
+      r: TransferFunctions.sRGB.decode(srgb.r),
+      g: TransferFunctions.sRGB.decode(srgb.g),
+      b: TransferFunctions.sRGB.decode(srgb.b)
+    };
+
+    // Calculate luminance (using BT.709 coefficients)
+    const luminance = 0.2126 * linear.r + 0.7152 * linear.g + 0.0722 * linear.b;
+
+    // Determine bin index (0 to bins-1)
+    const binR = Math.min(Math.floor(linear.r * bins), bins - 1);
+    const binG = Math.min(Math.floor(linear.g * bins), bins - 1);
+    const binB = Math.min(Math.floor(linear.b * bins), bins - 1);
+    const binL = Math.min(Math.floor(luminance * bins), bins - 1);
+
+    histogramR[binR]++;
+    histogramG[binG]++;
+    histogramB[binB]++;
+    histogramLuminance[binL]++;
+  }
+
+  // Normalize histograms (convert to percentages)
+  const normalize = (hist) => hist.map((count) => (count / totalPixels) * 100);
+
+  return {
+    r: normalize(histogramR),
+    g: normalize(histogramG),
+    b: normalize(histogramB),
+    luminance: normalize(histogramLuminance),
+    bins: bins,
+    binWidth: 1 / bins
+  };
 }
 
 // Update graphs
 function updateGraphs() {
-    if (transferMode === 'eotf') {
-        updateEOTFGraphs();
-    } else {
-        updateOETFGraphs();
-    }
+  if (transferMode === "eotf") {
+    updateEOTFGraphs();
+  } else {
+    updateOETFGraphs();
+  }
 }
 
 function updateEOTFGraphs() {
-    const showCurves = document.getElementById('showCurves').checked;
-    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
-    
-    // Generate brightness values on log scale
-    const numPoints = 100;
-    const minBrightness = 0.01;
-    
-    // Common layout settings
-    const darkLayout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 30, r: 30, b: 60, l: 70 },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        }
-    };
-    
-    // Generate signal values (0-1)
-    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-    
-    // sRGB EOTF - SDR standard is 100 nits
-    const srgbPeak = 100; // sRGB is SDR, always 100 nits
-    const srgbTraces = [];
-    
-    // Add histogram if available and enabled - for EOTF, histogram shows signal distribution
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
-        if (histTrace) {
-            // Use secondary y-axis for histogram with linear scale
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            srgbTraces.push(histTrace);
-        }
+  const showCurves = document.getElementById("showCurves").checked;
+  const showHistogram = document.getElementById("showHistogram")
+    ? document.getElementById("showHistogram").checked
+    : false;
+
+  // Generate brightness values on log scale
+  const numPoints = 100;
+  const minBrightness = 0.01;
+
+  // Common layout settings
+  const darkLayout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 30, r: 30, b: 60, l: 70 },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
     }
-    
-    if (showCurves) {
-        srgbTraces.push({
-            x: signalValues,
-            y: signalValues.map(signal => {
-                const linear = TransferFunctions.sRGB.decode(signal);
-                return linear * srgbPeak;
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'sRGB',
-            line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        });
+  };
+
+  // Generate signal values (0-1)
+  const signalValues = Array.from(
+    { length: numPoints },
+    (_, i) => i / (numPoints - 1)
+  );
+
+  // sRGB EOTF - SDR standard is 100 nits
+  const srgbPeak = 100; // sRGB is SDR, always 100 nits
+  const srgbTraces = [];
+
+  // Add histogram if available and enabled - for EOTF, histogram shows signal distribution
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
+    if (histTrace) {
+      // Use secondary y-axis for histogram with linear scale
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      srgbTraces.push(histTrace);
     }
-    
-    const srgbLayout = {
-        ...darkLayout,
-        title: 'sRGB EOTF (100 nits SDR)',
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, Math.log10(srgbPeak) + 0.5],
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100],
-            ticktext: ['0.1', '1', '10', '100']
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
-        }
-    };
-    Plotly.react('srgbGraph', srgbTraces, srgbLayout);
-    
-    // PQ EOTF
-    const pqTraces = [];
-    
-    // Add histogram for PQ EOTF
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // Consistent base scale
-        if (histTrace) {
-            // Use secondary y-axis for histogram with linear scale
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            pqTraces.push(histTrace);
-        }
+  }
+
+  if (showCurves) {
+    srgbTraces.push({
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        const linear = TransferFunctions.sRGB.decode(signal);
+        return linear * srgbPeak;
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: "sRGB",
+      line: { color: "#00bcd4", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    });
+  }
+
+  const srgbLayout = {
+    ...darkLayout,
+    title: "sRGB EOTF (100 nits SDR)",
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05]
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, Math.log10(srgbPeak) + 0.5],
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100],
+      ticktext: ["0.1", "1", "10", "100"]
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false // Hide axis line
     }
-    
-    if (showCurves) {
-        pqTraces.push({
-            x: signalValues,
-            y: signalValues.map(signal => {
-                // PQ.decode returns value where 1.0 = 100 nits, convert to actual nits
-                return TransferFunctions.PQ.decode(signal) * 100;
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'PQ',
-            line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        });
+  };
+  Plotly.react("srgbGraph", srgbTraces, srgbLayout);
+
+  // PQ EOTF
+  const pqTraces = [];
+
+  // Add histogram for PQ EOTF
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // Consistent base scale
+    if (histTrace) {
+      // Use secondary y-axis for histogram with linear scale
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      pqTraces.push(histTrace);
     }
-    
-    const pqLayout = {
-        ...darkLayout,
-        title: 'PQ EOTF (ST.2084)',
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, 4],  // 0.1 to 10000 nits
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
-        }
-    };
-    Plotly.react('pqGraph', pqTraces, pqLayout);
-    
-    // HLG EOTF
-    const hlgTraces = [];
-    
-    // Add histogram for HLG EOTF
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // Consistent base scale
-        if (histTrace) {
-            // Use secondary y-axis for histogram with linear scale
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            hlgTraces.push(histTrace);
-        }
+  }
+
+  if (showCurves) {
+    pqTraces.push({
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        // PQ.decode returns value where 1.0 = 100 nits, convert to actual nits
+        return TransferFunctions.PQ.decode(signal) * 100;
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: "PQ",
+      line: { color: "#ff9800", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    });
+  }
+
+  const pqLayout = {
+    ...darkLayout,
+    title: "PQ EOTF (ST.2084)",
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05]
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, 4], // 0.1 to 10000 nits
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100, 1000, 10000],
+      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false // Hide axis line
     }
-    
-    if (showCurves) {
-        hlgTraces.push({
-            x: signalValues,
-            y: signalValues.map(signal => {
-                // Use the HLG signalToNits function which properly handles the complete EOTF
-                return TransferFunctions.HLG.signalToNits(signal);
-            }),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'HLG',
-            line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-        });
+  };
+  Plotly.react("pqGraph", pqTraces, pqLayout);
+
+  // HLG EOTF
+  const hlgTraces = [];
+
+  // Add histogram for HLG EOTF
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // Consistent base scale
+    if (histTrace) {
+      // Use secondary y-axis for histogram with linear scale
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      hlgTraces.push(histTrace);
     }
-    
-    const hlgLayout = {
-        ...darkLayout,
-        title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05]
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, Math.log10(peakBrightness) + 0.5],
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10),
-            ticktext: [0.1, 1, 10, 100, 1000, 10000].filter(v => v <= peakBrightness * 10).map(v => v < 1000 ? String(v) : `${v/1000}k`)
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false          // Hide axis line
-        }
-    };
-    Plotly.react('hlgGraph', hlgTraces, hlgLayout);
-    
-    // Update combined graph if needed
-    if (viewMode === 'combined') {
-        updateCombinedGraph();
+  }
+
+  if (showCurves) {
+    hlgTraces.push({
+      x: signalValues,
+      y: signalValues.map((signal) => {
+        // Use the HLG signalToNits function which properly handles the complete EOTF
+        return TransferFunctions.HLG.signalToNits(signal);
+      }),
+      type: "scatter",
+      mode: "lines",
+      name: "HLG",
+      line: { color: "#9c27b0", width: 2 },
+      hovertemplate:
+        "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+    });
+  }
+
+  const hlgLayout = {
+    ...darkLayout,
+    title: `HLG EOTF (Peak: ${peakBrightness} cd/m²)`,
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05]
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, Math.log10(peakBrightness) + 0.5],
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100, 1000, 10000].filter(
+        (v) => v <= peakBrightness * 10
+      ),
+      ticktext: [0.1, 1, 10, 100, 1000, 10000]
+        .filter((v) => v <= peakBrightness * 10)
+        .map((v) => (v < 1000 ? String(v) : `${v / 1000}k`))
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false // Hide axis line
     }
+  };
+  Plotly.react("hlgGraph", hlgTraces, hlgLayout);
+
+  // Update combined graph if needed
+  if (viewMode === "combined") {
+    updateCombinedGraph();
+  }
 }
 
 function updateOETFGraphs() {
-    const showCurves = document.getElementById('showCurves').checked;
-    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
-    
-    const numPoints = 100; // Reduced for better performance
-    const linearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-    
-    // sRGB
-    const srgbTraces = [];
-    
-    // Add histogram if available and enabled
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
-        if (histTrace) {
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            srgbTraces.push(histTrace);
-        }
+  const showCurves = document.getElementById("showCurves").checked;
+  const showHistogram = document.getElementById("showHistogram")
+    ? document.getElementById("showHistogram").checked
+    : false;
+
+  const numPoints = 100; // Reduced for better performance
+  const linearValues = Array.from(
+    { length: numPoints },
+    (_, i) => i / (numPoints - 1)
+  );
+
+  // sRGB
+  const srgbTraces = [];
+
+  // Add histogram if available and enabled
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [0, 188, 212]); // Consistent base scale
+    if (histTrace) {
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      srgbTraces.push(histTrace);
     }
-    
-    if (showCurves) {
-        srgbTraces.push({
-            x: linearValues,
-            y: linearValues.map(v => TransferFunctions.sRGB.encode(v)),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'sRGB',
-            line: { color: '#00bcd4', width: 2 },
-            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
-        });
+  }
+
+  if (showCurves) {
+    srgbTraces.push({
+      x: linearValues,
+      y: linearValues.map((v) => TransferFunctions.sRGB.encode(v)),
+      type: "scatter",
+      mode: "lines",
+      name: "sRGB",
+      line: { color: "#00bcd4", width: 2 },
+      hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
+    });
+  }
+
+  const darkLayout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 30, r: 50, b: 40, l: 50 },
+    xaxis: {
+      title: "Linear Input",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1],
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis: {
+      title: "Encoded Output",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1],
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false, // Hide axis line
+      fixedrange: true // Prevent histogram from moving when zooming
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    title: "sRGB OETF (100 nits SDR)",
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
     }
-    
-    const darkLayout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 30, r: 50, b: 40, l: 50 },
-        xaxis: {
-            title: 'Linear Input',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1],
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis: {
-            title: 'Encoded Output',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1],
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false,         // Hide axis line
-            fixedrange: true         // Prevent histogram from moving when zooming
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        title: 'sRGB OETF (100 nits SDR)',
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        }
-    };
-    
-    Plotly.react('srgbGraph', srgbTraces, darkLayout);
-    
-    // PQ
-    const pqTraces = [];
-    
-    // Create extended linear range for PQ (0-100, where 100 = 10,000 nits)
-    const pqLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 100);
-    
-    // Add histogram for PQ
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // No transform function
-        if (histTrace) {
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            pqTraces.push(histTrace);
-        }
+  };
+
+  Plotly.react("srgbGraph", srgbTraces, darkLayout);
+
+  // PQ
+  const pqTraces = [];
+
+  // Create extended linear range for PQ (0-100, where 100 = 10,000 nits)
+  const pqLinearValues = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 100
+  );
+
+  // Add histogram for PQ
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [255, 152, 0]); // No transform function
+    if (histTrace) {
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      pqTraces.push(histTrace);
     }
-    
-    if (showCurves) {
-        pqTraces.push({
-            x: pqLinearValues,
-            y: pqLinearValues.map(v => TransferFunctions.PQ.encode(v)),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'PQ',
-            line: { color: '#ff9800', width: 2 },
-            hovertemplate: 'X: %{x:.3f} (~%{text})<br>Y: %{y:.3f}<extra></extra>',
-            text: pqLinearValues.map(v => `${(v * 100).toFixed(0)} nits`)
-        });
+  }
+
+  if (showCurves) {
+    pqTraces.push({
+      x: pqLinearValues,
+      y: pqLinearValues.map((v) => TransferFunctions.PQ.encode(v)),
+      type: "scatter",
+      mode: "lines",
+      name: "PQ",
+      line: { color: "#ff9800", width: 2 },
+      hovertemplate: "X: %{x:.3f} (~%{text})<br>Y: %{y:.3f}<extra></extra>",
+      text: pqLinearValues.map((v) => `${(v * 100).toFixed(0)} nits`)
+    });
+  }
+
+  const pqLayout = {
+    ...darkLayout,
+    title: "PQ OETF (ST.2084)",
+    xaxis: {
+      ...darkLayout.xaxis,
+      title: "Linear Light Input (0=black, 1=100 nits, 100=10,000 nits)",
+      range: [0, 6], // Default view 0-600 nits, can zoom out to see full 10,000 nits
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis: {
+      ...darkLayout.yaxis,
+      range: [0, 1.05],
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis2: {
+      ...darkLayout.yaxis2
+      // range kept at [0, 0.5] from darkLayout
     }
-    
-    const pqLayout = {
-        ...darkLayout, 
-        title: 'PQ OETF (ST.2084)',
-        xaxis: {
-            ...darkLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=100 nits, 100=10,000 nits)',
-            range: [0, 6],  // Default view 0-600 nits, can zoom out to see full 10,000 nits
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis: {
-            ...darkLayout.yaxis,
-            range: [0, 1.05],
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis2: {
-            ...darkLayout.yaxis2
-            // range kept at [0, 0.5] from darkLayout
-        }
-    };
-    Plotly.react('pqGraph', pqTraces, pqLayout);
-    
-    // HLG
-    const hlgTraces = [];
-    
-    // Create extended linear range for HLG (0-12)
-    const hlgLinearValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1) * 12);
-    
-    // Add histogram for HLG
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // No transform function
-        if (histTrace) {
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            hlgTraces.push(histTrace);
-        }
+  };
+  Plotly.react("pqGraph", pqTraces, pqLayout);
+
+  // HLG
+  const hlgTraces = [];
+
+  // Create extended linear range for HLG (0-12)
+  const hlgLinearValues = Array.from(
+    { length: numPoints },
+    (_, i) => (i / (numPoints - 1)) * 12
+  );
+
+  // Add histogram for HLG
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [156, 39, 176]); // No transform function
+    if (histTrace) {
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      hlgTraces.push(histTrace);
     }
-    
-    if (showCurves) {
-        hlgTraces.push({
-            x: hlgLinearValues,
-            y: hlgLinearValues.map(v => TransferFunctions.HLG.encode(v)),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'HLG',
-            line: { color: '#9c27b0', width: 2 },
-            hovertemplate: 'X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>'
-        });
+  }
+
+  if (showCurves) {
+    hlgTraces.push({
+      x: hlgLinearValues,
+      y: hlgLinearValues.map((v) => TransferFunctions.HLG.encode(v)),
+      type: "scatter",
+      mode: "lines",
+      name: "HLG",
+      line: { color: "#9c27b0", width: 2 },
+      hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
+    });
+  }
+
+  const hlgLayout = {
+    ...darkLayout,
+    title: "HLG OETF (BT.2100)",
+    xaxis: {
+      ...darkLayout.xaxis,
+      title: "Linear Light Input (0=black, 1=ref white, 12=peak)",
+      range: [0, 6],
+      // dtick removed - auto-adjusts with zoom
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis: {
+      ...darkLayout.yaxis,
+      range: [0, 1.05],
+      rangemode: "tozero",
+      fixedrange: false
+    },
+    yaxis2: {
+      ...darkLayout.yaxis2
+      // range kept at [0, 0.5] from darkLayout
     }
-    
-    const hlgLayout = {
-        ...darkLayout, 
-        title: 'HLG OETF (BT.2100)',
-        xaxis: {
-            ...darkLayout.xaxis,
-            title: 'Linear Light Input (0=black, 1=ref white, 12=peak)',
-            range: [0, 6],
-            // dtick removed - auto-adjusts with zoom
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis: {
-            ...darkLayout.yaxis,
-            range: [0, 1.05],
-            rangemode: 'tozero',
-            fixedrange: false
-        },
-        yaxis2: {
-            ...darkLayout.yaxis2
-            // range kept at [0, 0.5] from darkLayout
-        }
-    };
-    Plotly.react('hlgGraph', hlgTraces, hlgLayout);
-    
-    // Update combined graph if needed
-    if (viewMode === 'combined') {
-        updateCombinedGraph();
-    }
+  };
+  Plotly.react("hlgGraph", hlgTraces, hlgLayout);
+
+  // Update combined graph if needed
+  if (viewMode === "combined") {
+    updateCombinedGraph();
+  }
 }
 
 // Highlight pixel on graphs - optimized version
 function highlightPixelOnGraphs(pixel) {
-    currentHoverPixel = pixel;
-    
-    // Skip if in combined view - update only combined graph
-    if (viewMode === 'combined') {
-        updateCombinedGraphHighlight(pixel);
-        return;
-    }
-    
-    // Update individual graphs with highlight
-    const graphIds = ['srgbGraph', 'pqGraph', 'hlgGraph'];
-    const functions = [TransferFunctions.sRGB, TransferFunctions.PQ, TransferFunctions.HLG];
-    
-    graphIds.forEach((graphId, idx) => {
-        const graphDiv = document.getElementById(graphId);
-        if (!graphDiv || !graphDiv.data) return;
-        
-        // Use Plotly.restyle for better performance - just update the hover traces
-        const baseTraceCount = graphDiv.data.filter(trace => !trace.name || !trace.name.includes('Hover')).length;
-        
-        if (pixel) {
-            let rData, gData, bData, rY, gY, bY;
-            
-            if (transferMode === 'eotf') {
-                // EOTF mode: show encoded RGB values on X-axis, brightness on Y-axis
-                rData = [pixel.srgb.r];
-                gData = [pixel.srgb.g];
-                bData = [pixel.srgb.b];
-                
-                // Calculate brightness output for each channel
-                if (idx === 0) { // sRGB
-                    rY = [pixel.linear.r * 100]; // Convert to nits
-                    gY = [pixel.linear.g * 100];
-                    bY = [pixel.linear.b * 100];
-                } else if (idx === 1) { // PQ
-                    // PQ decode already returns values where 1.0 = 100 nits
-                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r)];
-                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g)];
-                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b)];
-                } else { // HLG
-                    const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
-                    const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
-                    const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
-                    rY = [Math.pow(rScene, 1.2) * peakBrightness];
-                    gY = [Math.pow(gScene, 1.2) * peakBrightness];
-                    bY = [Math.pow(bScene, 1.2) * peakBrightness];
-                }
-            } else {
-                // OETF mode: show linear values on X-axis, encoded on Y-axis
-                rData = [pixel.linear.r];
-                gData = [pixel.linear.g];
-                bData = [pixel.linear.b];
-                rY = [functions[idx].encode(pixel.linear.r)];
-                gY = [functions[idx].encode(pixel.linear.g)];
-                bY = [functions[idx].encode(pixel.linear.b)];
-            }
-            
-            // Check if we need to add or update traces
-            if (graphDiv.data.length === baseTraceCount) {
-                // Add new hover traces
-                const hoverTraces = [
-                    {
-                        x: rData,
-                        y: rY,
-                        type: 'scatter',
-                        mode: 'markers',
-                        name: 'Hover R',
-                        marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 } },
-                        hovertemplate: 'Hover R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                        showlegend: false
-                    },
-                    {
-                        x: gData,
-                        y: gY,
-                        type: 'scatter',
-                        mode: 'markers',
-                        name: 'Hover G',
-                        marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 } },
-                        hovertemplate: 'Hover G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                        showlegend: false
-                    },
-                    {
-                        x: bData,
-                        y: bY,
-                        type: 'scatter',
-                        mode: 'markers',
-                        name: 'Hover B',
-                        marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 } },
-                        hovertemplate: 'Hover B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>',
-                        showlegend: false
-                    }
-                ];
-                Plotly.addTraces(graphId, hoverTraces);
-            } else {
-                // Update existing hover traces using restyle (much faster)
-                Plotly.restyle(graphId, {
-                    x: [rData, gData, bData],
-                    y: [rY, gY, bY]
-                }, [baseTraceCount, baseTraceCount + 1, baseTraceCount + 2]);
-            }
+  currentHoverPixel = pixel;
+
+  // Skip if in combined view - update only combined graph
+  if (viewMode === "combined") {
+    updateCombinedGraphHighlight(pixel);
+    return;
+  }
+
+  // Update individual graphs with highlight
+  const graphIds = ["srgbGraph", "pqGraph", "hlgGraph"];
+  const functions = [
+    TransferFunctions.sRGB,
+    TransferFunctions.PQ,
+    TransferFunctions.HLG
+  ];
+
+  graphIds.forEach((graphId, idx) => {
+    const graphDiv = document.getElementById(graphId);
+    if (!graphDiv || !graphDiv.data) return;
+
+    // Use Plotly.restyle for better performance - just update the hover traces
+    const baseTraceCount = graphDiv.data.filter(
+      (trace) => !trace.name || !trace.name.includes("Hover")
+    ).length;
+
+    if (pixel) {
+      let rData, gData, bData, rY, gY, bY;
+
+      if (transferMode === "eotf") {
+        // EOTF mode: show encoded RGB values on X-axis, brightness on Y-axis
+        rData = [pixel.srgb.r];
+        gData = [pixel.srgb.g];
+        bData = [pixel.srgb.b];
+
+        // Calculate brightness output for each channel
+        if (idx === 0) {
+          // sRGB
+          rY = [pixel.linear.r * 100]; // Convert to nits
+          gY = [pixel.linear.g * 100];
+          bY = [pixel.linear.b * 100];
+        } else if (idx === 1) {
+          // PQ
+          // PQ decode already returns values where 1.0 = 100 nits
+          rY = [TransferFunctions.PQ.decode(pixel.srgb.r)];
+          gY = [TransferFunctions.PQ.decode(pixel.srgb.g)];
+          bY = [TransferFunctions.PQ.decode(pixel.srgb.b)];
         } else {
-            // Remove hover traces if they exist
-            if (graphDiv.data.length > baseTraceCount) {
-                const indicesToRemove = [];
-                for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
-                    indicesToRemove.push(i);
-                }
-                Plotly.deleteTraces(graphId, indicesToRemove);
-            }
+          // HLG
+          const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
+          const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
+          const bScene = TransferFunctions.HLG.decode(pixel.srgb.b);
+          rY = [Math.pow(rScene, 1.2) * peakBrightness];
+          gY = [Math.pow(gScene, 1.2) * peakBrightness];
+          bY = [Math.pow(bScene, 1.2) * peakBrightness];
         }
-    });
+      } else {
+        // OETF mode: show linear values on X-axis, encoded on Y-axis
+        rData = [pixel.linear.r];
+        gData = [pixel.linear.g];
+        bData = [pixel.linear.b];
+        rY = [functions[idx].encode(pixel.linear.r)];
+        gY = [functions[idx].encode(pixel.linear.g)];
+        bY = [functions[idx].encode(pixel.linear.b)];
+      }
+
+      // Check if we need to add or update traces
+      if (graphDiv.data.length === baseTraceCount) {
+        // Add new hover traces
+        const hoverTraces = [
+          {
+            x: rData,
+            y: rY,
+            type: "scatter",
+            mode: "markers",
+            name: "Hover R",
+            marker: {
+              color: "#ff0000",
+              size: 12,
+              line: { color: "white", width: 2 }
+            },
+            hovertemplate:
+              "Hover R<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>",
+            showlegend: false
+          },
+          {
+            x: gData,
+            y: gY,
+            type: "scatter",
+            mode: "markers",
+            name: "Hover G",
+            marker: {
+              color: "#00ff00",
+              size: 12,
+              line: { color: "white", width: 2 }
+            },
+            hovertemplate:
+              "Hover G<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>",
+            showlegend: false
+          },
+          {
+            x: bData,
+            y: bY,
+            type: "scatter",
+            mode: "markers",
+            name: "Hover B",
+            marker: {
+              color: "#0000ff",
+              size: 12,
+              line: { color: "white", width: 2 }
+            },
+            hovertemplate:
+              "Hover B<br>X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>",
+            showlegend: false
+          }
+        ];
+        Plotly.addTraces(graphId, hoverTraces);
+      } else {
+        // Update existing hover traces using restyle (much faster)
+        Plotly.restyle(
+          graphId,
+          {
+            x: [rData, gData, bData],
+            y: [rY, gY, bY]
+          },
+          [baseTraceCount, baseTraceCount + 1, baseTraceCount + 2]
+        );
+      }
+    } else {
+      // Remove hover traces if they exist
+      if (graphDiv.data.length > baseTraceCount) {
+        const indicesToRemove = [];
+        for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+          indicesToRemove.push(i);
+        }
+        Plotly.deleteTraces(graphId, indicesToRemove);
+      }
+    }
+  });
 }
 
 // Optimized combined graph highlight update
 function updateCombinedGraphHighlight(pixel) {
-    const graphDiv = document.getElementById('combinedGraph');
-    if (!graphDiv || !graphDiv.data) return;
-    
-    const baseTraceCount = graphDiv.data.filter(trace => !trace.name || !trace.name.includes('Hover')).length;
-    
-    if (pixel) {
-        const updates = {
-            x: [],
-            y: []
-        };
-        
-        if (transferMode === 'eotf') {
-            // EOTF mode: signal -> brightness
-            ['sRGB', 'PQ', 'HLG'].forEach((type) => {
-                // X-axis: encoded signal values
-                updates.x.push([pixel.srgb.r], [pixel.srgb.g], [pixel.srgb.b]);
-                
-                // Y-axis: brightness output
-                if (type === 'sRGB') {
-                    updates.y.push(
-                        [pixel.linear.r * 100],
-                        [pixel.linear.g * 100],
-                        [pixel.linear.b * 100]
-                    );
-                } else if (type === 'PQ') {
-                    // PQ decode already returns values where 1.0 = 100 nits
-                    updates.y.push(
-                        [TransferFunctions.PQ.decode(pixel.srgb.r)],
-                        [TransferFunctions.PQ.decode(pixel.srgb.g)],
-                        [TransferFunctions.PQ.decode(pixel.srgb.b)]
-                    );
-                } else { // HLG
-                    updates.y.push(
-                        [HLG.signalToNits(pixel.srgb.r, peakBrightness)],
-                        [HLG.signalToNits(pixel.srgb.g, peakBrightness)],
-                        [HLG.signalToNits(pixel.srgb.b, peakBrightness)]
-                    );
-                }
-            });
+  const graphDiv = document.getElementById("combinedGraph");
+  if (!graphDiv || !graphDiv.data) return;
+
+  const baseTraceCount = graphDiv.data.filter(
+    (trace) => !trace.name || !trace.name.includes("Hover")
+  ).length;
+
+  if (pixel) {
+    const updates = {
+      x: [],
+      y: []
+    };
+
+    if (transferMode === "eotf") {
+      // EOTF mode: signal -> brightness
+      ["sRGB", "PQ", "HLG"].forEach((type) => {
+        // X-axis: encoded signal values
+        updates.x.push([pixel.srgb.r], [pixel.srgb.g], [pixel.srgb.b]);
+
+        // Y-axis: brightness output
+        if (type === "sRGB") {
+          updates.y.push(
+            [pixel.linear.r * 100],
+            [pixel.linear.g * 100],
+            [pixel.linear.b * 100]
+          );
+        } else if (type === "PQ") {
+          // PQ decode already returns values where 1.0 = 100 nits
+          updates.y.push(
+            [TransferFunctions.PQ.decode(pixel.srgb.r)],
+            [TransferFunctions.PQ.decode(pixel.srgb.g)],
+            [TransferFunctions.PQ.decode(pixel.srgb.b)]
+          );
         } else {
-            // OETF mode: linear -> encoded
-            // We need to update 9 traces total: 3 RGB for each of the 3 curves
-            // Order must match how they're created in updateCombinedOETFGraph
-            
-            // sRGB points (first 3, but may be skipped if out of range)
-            // HLG points (next 3)
-            // PQ points (last 3)
-            
-            // For simplicity, always push 9 values even if some are null
-            // sRGB R, G, B
-            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-            updates.y.push(
-                [pixel.linear.r <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.r) : null],
-                [pixel.linear.g <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.g) : null],
-                [pixel.linear.b <= 1 ? TransferFunctions.sRGB.encode(pixel.linear.b) : null]
-            );
-            
-            // HLG R, G, B
-            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-            updates.y.push(
-                [TransferFunctions.HLG.encode(pixel.linear.r)],
-                [TransferFunctions.HLG.encode(pixel.linear.g)],
-                [TransferFunctions.HLG.encode(pixel.linear.b)]
-            );
-            
-            // PQ R, G, B
-            updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-            updates.y.push(
-                [TransferFunctions.PQ.encode(pixel.linear.r)],
-                [TransferFunctions.PQ.encode(pixel.linear.g)],
-                [TransferFunctions.PQ.encode(pixel.linear.b)]
-            );
+          // HLG
+          updates.y.push(
+            [HLG.signalToNits(pixel.srgb.r, peakBrightness)],
+            [HLG.signalToNits(pixel.srgb.g, peakBrightness)],
+            [HLG.signalToNits(pixel.srgb.b, peakBrightness)]
+          );
         }
-        
-        if (graphDiv.data.length === baseTraceCount) {
-            // Need to add traces - do full update
-            updateCombinedGraph();
-        } else {
-            // Just update positions using restyle
-            const indices = [];
-            for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
-                indices.push(i);
-            }
-            Plotly.restyle('combinedGraph', {
-                x: updates.x,
-                y: updates.y
-            }, indices);
-        }
+      });
     } else {
-        // Remove hover traces
-        if (graphDiv.data.length > baseTraceCount) {
-            const indicesToRemove = [];
-            for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
-                indicesToRemove.push(i);
-            }
-            Plotly.deleteTraces('combinedGraph', indicesToRemove);
-        }
+      // OETF mode: linear -> encoded
+      // We need to update 9 traces total: 3 RGB for each of the 3 curves
+      // Order must match how they're created in updateCombinedOETFGraph
+
+      // sRGB points (first 3, but may be skipped if out of range)
+      // HLG points (next 3)
+      // PQ points (last 3)
+
+      // For simplicity, always push 9 values even if some are null
+      // sRGB R, G, B
+      updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+      updates.y.push(
+        [
+          pixel.linear.r <= 1
+            ? TransferFunctions.sRGB.encode(pixel.linear.r)
+            : null
+        ],
+        [
+          pixel.linear.g <= 1
+            ? TransferFunctions.sRGB.encode(pixel.linear.g)
+            : null
+        ],
+        [
+          pixel.linear.b <= 1
+            ? TransferFunctions.sRGB.encode(pixel.linear.b)
+            : null
+        ]
+      );
+
+      // HLG R, G, B
+      updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+      updates.y.push(
+        [TransferFunctions.HLG.encode(pixel.linear.r)],
+        [TransferFunctions.HLG.encode(pixel.linear.g)],
+        [TransferFunctions.HLG.encode(pixel.linear.b)]
+      );
+
+      // PQ R, G, B
+      updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+      updates.y.push(
+        [TransferFunctions.PQ.encode(pixel.linear.r)],
+        [TransferFunctions.PQ.encode(pixel.linear.g)],
+        [TransferFunctions.PQ.encode(pixel.linear.b)]
+      );
     }
+
+    if (graphDiv.data.length === baseTraceCount) {
+      // Need to add traces - do full update
+      updateCombinedGraph();
+    } else {
+      // Just update positions using restyle
+      const indices = [];
+      for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+        indices.push(i);
+      }
+      Plotly.restyle(
+        "combinedGraph",
+        {
+          x: updates.x,
+          y: updates.y
+        },
+        indices
+      );
+    }
+  } else {
+    // Remove hover traces
+    if (graphDiv.data.length > baseTraceCount) {
+      const indicesToRemove = [];
+      for (let i = baseTraceCount; i < graphDiv.data.length; i++) {
+        indicesToRemove.push(i);
+      }
+      Plotly.deleteTraces("combinedGraph", indicesToRemove);
+    }
+  }
 }
 
 // Update combined graph
 function updateCombinedGraph() {
-    if (transferMode === 'eotf') {
-        updateCombinedEOTFGraph();
-    } else {
-        updateCombinedOETFGraph();
-    }
+  if (transferMode === "eotf") {
+    updateCombinedEOTFGraph();
+  } else {
+    updateCombinedOETFGraph();
+  }
 }
 
 function updateCombinedEOTFGraph() {
-    const showCurves = document.getElementById('showCurves').checked;
-    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
-    
-    // Generate signal values (0-1)
-    const numPoints = 100;
-    const signalValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-    
-    const traces = [];
-    
-    // Add histogram if enabled for EOTF mode
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // Consistent base scale
-        if (histTrace) {
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            histTrace.showlegend = true;
-            histTrace.name = 'Histogram';
-            traces.push(histTrace);
+  const showCurves = document.getElementById("showCurves").checked;
+  const showHistogram = document.getElementById("showHistogram")
+    ? document.getElementById("showHistogram").checked
+    : false;
+
+  // Generate signal values (0-1)
+  const numPoints = 100;
+  const signalValues = Array.from(
+    { length: numPoints },
+    (_, i) => i / (numPoints - 1)
+  );
+
+  const traces = [];
+
+  // Add histogram if enabled for EOTF mode
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // Consistent base scale
+    if (histTrace) {
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      histTrace.showlegend = true;
+      histTrace.name = "Histogram";
+      traces.push(histTrace);
+    }
+  }
+
+  if (showCurves) {
+    traces.push(
+      {
+        x: signalValues,
+        y: signalValues.map((signal) => {
+          // sRGB EOTF: signal -> linear -> brightness
+          const linear = TransferFunctions.sRGB.decode(signal);
+          return linear * 100; // sRGB peak is 100 nits
+        }),
+        type: "scatter",
+        mode: "lines",
+        name: "sRGB (100 nits SDR)",
+        line: { color: "#00bcd4", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      },
+      {
+        x: signalValues,
+        y: signalValues.map((signal) => {
+          // PQ EOTF: signal -> brightness (decode returns value where 1.0 = 100 nits)
+          return TransferFunctions.PQ.decode(signal) * 100;
+        }),
+        type: "scatter",
+        mode: "lines",
+        name: "PQ (10000 nits)",
+        line: { color: "#ff9800", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      },
+      {
+        x: signalValues,
+        y: signalValues.map((signal) => {
+          // HLG EOTF: Use the proper signalToNits function
+          return TransferFunctions.HLG.signalToNits(signal);
+        }),
+        type: "scatter",
+        mode: "lines",
+        name: `HLG (${peakBrightness} nits)`,
+        line: { color: "#9c27b0", width: 2 },
+        hovertemplate:
+          "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
+      }
+    );
+  }
+
+  // Add hover pixel if exists for EOTF mode
+  if (currentHoverPixel) {
+    ["sRGB", "PQ", "HLG"].forEach((type) => {
+      const symbol =
+        type === "sRGB" ? "circle" : type === "PQ" ? "square" : "diamond";
+
+      let xR = currentHoverPixel.srgb.r;
+      let xG = currentHoverPixel.srgb.g;
+      let xB = currentHoverPixel.srgb.b;
+      let yR, yG, yB;
+
+      if (type === "sRGB") {
+        yR = currentHoverPixel.linear.r * 100;
+        yG = currentHoverPixel.linear.g * 100;
+        yB = currentHoverPixel.linear.b * 100;
+      } else if (type === "PQ") {
+        // PQ decode already returns values where 1.0 = 100 nits
+        yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r);
+        yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g);
+        yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b);
+      } else {
+        // HLG
+        const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
+        const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);
+        const bScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.b);
+        yR = Math.pow(rScene, 1.2) * peakBrightness;
+        yG = Math.pow(gScene, 1.2) * peakBrightness;
+        yB = Math.pow(bScene, 1.2) * peakBrightness;
+      }
+
+      traces.push(
+        {
+          x: [xR],
+          y: [yR],
+          type: "scatter",
+          mode: "markers",
+          name: `Hover ${type} R`,
+          marker: {
+            color: "#ff0000",
+            size: 12,
+            line: { color: "white", width: 2 },
+            symbol
+          },
+          hovertemplate: `Hover ${type} R<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+          showlegend: false
+        },
+        {
+          x: [xG],
+          y: [yG],
+          type: "scatter",
+          mode: "markers",
+          name: `Hover ${type} G`,
+          marker: {
+            color: "#00ff00",
+            size: 12,
+            line: { color: "white", width: 2 },
+            symbol
+          },
+          hovertemplate: `Hover ${type} G<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+          showlegend: false
+        },
+        {
+          x: [xB],
+          y: [yB],
+          type: "scatter",
+          mode: "markers",
+          name: `Hover ${type} B`,
+          marker: {
+            color: "#0000ff",
+            size: 12,
+            line: { color: "white", width: 2 },
+            symbol
+          },
+          hovertemplate: `Hover ${type} B<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
+          showlegend: false
         }
+      );
+    });
+  }
+
+  const layout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 40, r: 50, b: 60, l: 70 },
+    xaxis: {
+      title: "Input Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05],
+      dtick: 0.2
+    },
+    yaxis: {
+      title: "Output Brightness (cd/m²)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      type: "log",
+      range: [-1, 4], // Log scale: 10^-1 (0.1) to 10^4 (10000)
+      tickmode: "array",
+      tickvals: [0.1, 1, 10, 100, 1000, 10000],
+      ticktext: ["0.1", "1", "10", "100", "1k", "10k"]
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false, // Hide axis line
+      fixedrange: true // Prevent histogram from moving when zooming
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    title: "EOTF (Display Response Curves)",
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
     }
-    
-    if (showCurves) {
-        traces.push(
-            {
-                x: signalValues,
-                y: signalValues.map(signal => {
-                    // sRGB EOTF: signal -> linear -> brightness
-                    const linear = TransferFunctions.sRGB.decode(signal);
-                    return linear * 100; // sRGB peak is 100 nits
-                }),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'sRGB (100 nits SDR)',
-                line: { color: '#00bcd4', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-            },
-            {
-                x: signalValues,
-                y: signalValues.map(signal => {
-                    // PQ EOTF: signal -> brightness (decode returns value where 1.0 = 100 nits)
-                    return TransferFunctions.PQ.decode(signal) * 100;
-                }),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'PQ (10000 nits)',
-                line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-            },
-            {
-                x: signalValues,
-                y: signalValues.map(signal => {
-                    // HLG EOTF: Use the proper signalToNits function
-                    return TransferFunctions.HLG.signalToNits(signal);
-                }),
-                type: 'scatter',
-                mode: 'lines',
-                name: `HLG (${peakBrightness} nits)`,
-                line: { color: '#9c27b0', width: 2 },
-                hovertemplate: 'Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>'
-            }
-        );
-    }
-    
-    // Add hover pixel if exists for EOTF mode
-    if (currentHoverPixel) {
-        ['sRGB', 'PQ', 'HLG'].forEach((type) => {
-            const symbol = type === 'sRGB' ? 'circle' :
-                          type === 'PQ' ? 'square' : 'diamond';
-            
-            let xR = currentHoverPixel.srgb.r;
-            let xG = currentHoverPixel.srgb.g;
-            let xB = currentHoverPixel.srgb.b;
-            let yR, yG, yB;
-            
-            if (type === 'sRGB') {
-                yR = currentHoverPixel.linear.r * 100;
-                yG = currentHoverPixel.linear.g * 100;
-                yB = currentHoverPixel.linear.b * 100;
-            } else if (type === 'PQ') {
-                // PQ decode already returns values where 1.0 = 100 nits
-                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r);
-                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g);
-                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b);
-            } else { // HLG
-                const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
-                const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);
-                const bScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.b);
-                yR = Math.pow(rScene, 1.2) * peakBrightness;
-                yG = Math.pow(gScene, 1.2) * peakBrightness;
-                yB = Math.pow(bScene, 1.2) * peakBrightness;
-            }
-            
-            traces.push(
-                {
-                    x: [xR],
-                    y: [yR],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} R`,
-                    marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} R<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
-                    showlegend: false
-                },
-                {
-                    x: [xG],
-                    y: [yG],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} G`,
-                    marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} G<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
-                    showlegend: false
-                },
-                {
-                    x: [xB],
-                    y: [yB],
-                    type: 'scatter',
-                    mode: 'markers',
-                    name: `Hover ${type} B`,
-                    marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol },
-                    hovertemplate: `Hover ${type} B<br>Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>`,
-                    showlegend: false
-                }
-            );
-        });
-    }
-    
-    const layout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 40, r: 50, b: 60, l: 70 },
-        xaxis: {
-            title: 'Input Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            dtick: 0.2
-        },
-        yaxis: {
-            title: 'Output Brightness (cd/m²)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            type: 'log',
-            range: [-1, 4],  // Log scale: 10^-1 (0.1) to 10^4 (10000)
-            tickmode: 'array',
-            tickvals: [0.1, 1, 10, 100, 1000, 10000],
-            ticktext: ['0.1', '1', '10', '100', '1k', '10k']
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false,         // Hide axis line
-            fixedrange: true         // Prevent histogram from moving when zooming
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        title: 'EOTF (Display Response Curves)',
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        }
-    };
-    
-    Plotly.react('combinedGraph', traces, layout);
+  };
+
+  Plotly.react("combinedGraph", traces, layout);
 }
 
 function updateCombinedOETFGraph() {
-    const showCurves = document.getElementById('showCurves').checked;
-    const showHistogram = document.getElementById('showHistogram') ? document.getElementById('showHistogram').checked : false;
-    
-    const numPoints = 200;
-    
-    const traces = [];
-    
-    // Add histogram if enabled
-    if (showHistogram && histogram) {
-        const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // No transform function
-        if (histTrace) {
-            histTrace.yaxis = 'y2';
-            histTrace.opacity = 0.3;
-            histTrace.showlegend = true;
-            histTrace.name = 'Histogram';
-            traces.push(histTrace);
-        }
+  const showCurves = document.getElementById("showCurves").checked;
+  const showHistogram = document.getElementById("showHistogram")
+    ? document.getElementById("showHistogram").checked
+    : false;
+
+  const numPoints = 200;
+
+  const traces = [];
+
+  // Add histogram if enabled
+  if (showHistogram && histogram) {
+    const histTrace = createHistogramTrace(histogram, 0.3, [255, 255, 255]); // No transform function
+    if (histTrace) {
+      histTrace.yaxis = "y2";
+      histTrace.opacity = 0.3;
+      histTrace.showlegend = true;
+      histTrace.name = "Histogram";
+      traces.push(histTrace);
     }
-    
-    if (showCurves) {
-        // Create a unified x-axis from 0 to 100 for all curves
-        // This ensures hover points align correctly
-        // Include key points like 1.0 and 12.0 explicitly
-        const numPoints = 1001; // Use 1001 to ensure we hit exact values
-        const xValues = Array.from({length: numPoints}, (_, i) => (i / 1000) * 100);
-        
-        // Calculate y values for each curve at every x position
-        // Use null for out-of-range values
-        const srgbY = xValues.map(x => x <= 1 ? TransferFunctions.sRGB.encode(x) : null);
-        const hlgY = xValues.map(x => x <= 12 ? TransferFunctions.HLG.encode(x) : null);
-        const pqY = xValues.map(x => TransferFunctions.PQ.encode(x));
-        
-        traces.push(
-            {
-                x: xValues,
-                y: srgbY,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'sRGB',
-                line: { color: '#00bcd4', width: 2 },
-                connectgaps: false,  // Don't connect over null values
-                hovertemplate: 'sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
-            },
-            {
-                x: xValues,
-                y: hlgY,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'HLG',
-                line: { color: '#9c27b0', width: 2 },
-                connectgaps: false,  // Don't connect over null values
-                hovertemplate: 'HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>'
-            },
-            {
-                x: xValues,
-                y: pqY,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'PQ (ST.2084)',
-                line: { color: '#ff9800', width: 2 },
-                hovertemplate: 'PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>',
-                text: xValues.map(v => `${(v * 100).toFixed(0)} nits`)
-            }
-        );
-    }
-    
-    // Add hover pixel if exists
-    if (currentHoverPixel) {
-        // For combined view, we show RGB points at the same x position for all curves
-        // Always create all 9 traces in the same order for consistency with updateCombinedGraphHighlight
-        
-        // sRGB hover points (hide if out of range)
-        traces.push(
-            {
-                x: [currentHoverPixel.linear.r],
-                y: [currentHoverPixel.linear.r <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.r) : null],
-                type: 'scatter',
-                mode: 'markers',
-                name: 'Hover sRGB R',
-                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
-                hovertemplate: 'Hover sRGB R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.g],
-                y: [currentHoverPixel.linear.g <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.g) : null],
-                type: 'scatter',
-                mode: 'markers',
-                name: 'Hover sRGB G',
-                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
-                hovertemplate: 'Hover sRGB G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.b],
-                y: [currentHoverPixel.linear.b <= 1 ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.b) : null],
-                type: 'scatter',
-                mode: 'markers',
-                name: 'Hover sRGB B',
-                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: 'circle' },
-                hovertemplate: 'Hover sRGB B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>',
-                showlegend: false
-            }
-        );
-        
-        // HLG hover points - use normal linear scale
-        const hlgSymbol = 'diamond';
-        traces.push(
-            {
-                x: [currentHoverPixel.linear.r],
-                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.r)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover HLG R`,
-                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
-                hovertemplate: `Hover HLG R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.g],
-                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.g)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover HLG G`,
-                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
-                hovertemplate: `Hover HLG G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.b],
-                y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.b)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover HLG B`,
-                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: hlgSymbol },
-                hovertemplate: `Hover HLG B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            }
-        );
-        
-        // PQ hover points - PQ curve uses x values that are already in the same units
-        // as our linear values (1.0 = 100 nits), so no scaling needed
-        const pqSymbol = 'square';
-        traces.push(
-            {
-                x: [currentHoverPixel.linear.r],
-                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.r)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover PQ R`,
-                marker: { color: '#ff0000', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
-                hovertemplate: `Hover PQ R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.g],
-                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.g)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover PQ G`,
-                marker: { color: '#00ff00', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
-                hovertemplate: `Hover PQ G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            },
-            {
-                x: [currentHoverPixel.linear.b],
-                y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.b)],
-                type: 'scatter',
-                mode: 'markers',
-                name: `Hover PQ B`,
-                marker: { color: '#0000ff', size: 12, line: { color: 'white', width: 2 }, symbol: pqSymbol },
-                hovertemplate: `Hover PQ B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-                showlegend: false
-            }
-        );
-    }
-    
-    const layout = {
-        paper_bgcolor: '#0a0a0a',
-        plot_bgcolor: '#0a0a0a',
-        font: { 
-            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            color: '#e0e0e0', 
-            size: 11 
-        },
-        margin: { t: 40, r: 50, b: 60, l: 60 },
-        xaxis: {
-            title: 'Linear Light (1=100 nits)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 6],  // Default view shows 0-600 nits
-            // dtick removed - Plotly will auto-adjust based on zoom
-            autorange: false,
-            fixedrange: false  // Allow zooming via axis drag
-        },
-        yaxis: {
-            title: 'Encoded Signal (0-1)',
-            gridcolor: '#333',
-            zerolinecolor: '#555',
-            range: [0, 1.05],
-            // dtick removed - Plotly will auto-adjust based on zoom
-            autorange: false,
-            fixedrange: false  // Allow zooming via axis drag
-        },
-        yaxis2: {
-            // title: 'Histogram (%)',
-            // titlefont: { color: '#888' },
-            // tickfont: { color: '#888' },
-            overlaying: 'y',
-            side: 'right',
-            range: [0, 0.9],  // Increased range to make histogram 1/3 height
-            showgrid: false,
-            zeroline: false,
-            showticklabels: false,  // Hide tick labels
-            showline: false,         // Hide axis line
-            fixedrange: true         // Prevent histogram from moving when zooming
-        },
-        showlegend: true,
-        legend: {
-            x: 0.02,
-            y: 0.98,
-            bgcolor: 'rgba(0,0,0,0.5)'
-        },
-        hovermode: 'closest',
-        hoverlabel: {
-            bgcolor: 'rgba(0,0,0,0.8)',
-            font: {
-                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                color: 'white'
-            }
-        },
-        title: 'OETF (Camera Encoding Curves)'
-    };
-    
-    const config = {
-        responsive: true,
-        displayModeBar: true,
-        scrollZoom: true,  // Enable scroll zoom
-        doubleClick: 'reset',  // Double-click resets to original view
-        modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],  // Remove pan tool but keep zoom
-        modeBarButtonsToAdd: [],
-        displaylogo: false
-    };
-    
-    Plotly.react('combinedGraph', traces, layout, config).then(function() {
-        // Add event handler to constrain axis ranges (as backup for zoom operations)
-        const graphDiv = document.getElementById('combinedGraph');
-        graphDiv.on('plotly_relayout', function(eventdata) {
-            let update = {};
-            let needsUpdate = false;
-            
-            // Check and constrain x-axis (for zoom operations)
-            if (eventdata['xaxis.range[0]'] !== undefined && eventdata['xaxis.range[0]'] < 0) {
-                update['xaxis.range[0]'] = 0;
-                if (eventdata['xaxis.range[1]'] !== undefined) {
-                    update['xaxis.range[1]'] = eventdata['xaxis.range[1]'];
-                }
-                needsUpdate = true;
-            }
-            
-            // Check and constrain y-axis (for zoom operations)
-            if (eventdata['yaxis.range[0]'] !== undefined && eventdata['yaxis.range[0]'] < 0) {
-                update['yaxis.range[0]'] = 0;
-                if (eventdata['yaxis.range[1]'] !== undefined) {
-                    update['yaxis.range[1]'] = eventdata['yaxis.range[1]'];
-                }
-                needsUpdate = true;
-            }
-            
-            if (needsUpdate) {
-                Plotly.relayout('combinedGraph', update);
-            }
-        });
+  }
+
+  if (showCurves) {
+    // Create a unified x-axis from 0 to 100 for all curves
+    // This ensures hover points align correctly
+    // Include key points like 1.0 and 12.0 explicitly
+    const numPoints = 1001; // Use 1001 to ensure we hit exact values
+    const xValues = Array.from(
+      { length: numPoints },
+      (_, i) => (i / 1000) * 100
+    );
+
+    // Calculate y values for each curve at every x position
+    // Use null for out-of-range values
+    const srgbY = xValues.map((x) =>
+      x <= 1 ? TransferFunctions.sRGB.encode(x) : null
+    );
+    //const hlgY = xValues.map(x => x <= 12 ? TransferFunctions.HLG.encode(x) : null);
+    const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
+    const hlgY = xValues.map((x) => {
+      if (x > 12) return null; // HLG is not defined above 12
+      const rawSignal = TransferFunctions.HLG.encode(x);
+      // Normalize the signal to the [0, 1] range for the graph
+      return rawSignal / peakHlgSignal;
     });
+    const pqY = xValues.map((x) => TransferFunctions.PQ.encode(x));
+
+    traces.push(
+      {
+        x: xValues,
+        y: srgbY,
+        type: "scatter",
+        mode: "lines",
+        name: "sRGB",
+        line: { color: "#00bcd4", width: 2 },
+        connectgaps: false, // Don't connect over null values
+        hovertemplate:
+          "sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+      },
+      {
+        x: xValues,
+        y: hlgY,
+        type: "scatter",
+        mode: "lines",
+        name: "HLG",
+        line: { color: "#9c27b0", width: 2 },
+        connectgaps: false, // Don't connect over null values
+        hovertemplate:
+          "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+      },
+      {
+        x: xValues,
+        y: pqY,
+        type: "scatter",
+        mode: "lines",
+        name: "PQ (ST.2084)",
+        line: { color: "#ff9800", width: 2 },
+        hovertemplate:
+          "PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
+        text: xValues.map((v) => `${(v * 100).toFixed(0)} nits`)
+      }
+    );
+  }
+
+  // Add hover pixel if exists
+  if (currentHoverPixel) {
+    // For combined view, we show RGB points at the same x position for all curves
+    // Always create all 9 traces in the same order for consistency with updateCombinedGraphHighlight
+
+    // sRGB hover points (hide if out of range)
+    traces.push(
+      {
+        x: [currentHoverPixel.linear.r],
+        y: [
+          currentHoverPixel.linear.r <= 1
+            ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.r)
+            : null
+        ],
+        type: "scatter",
+        mode: "markers",
+        name: "Hover sRGB R",
+        marker: {
+          color: "#ff0000",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: "circle"
+        },
+        hovertemplate:
+          "Hover sRGB R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>",
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.g],
+        y: [
+          currentHoverPixel.linear.g <= 1
+            ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.g)
+            : null
+        ],
+        type: "scatter",
+        mode: "markers",
+        name: "Hover sRGB G",
+        marker: {
+          color: "#00ff00",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: "circle"
+        },
+        hovertemplate:
+          "Hover sRGB G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>",
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.b],
+        y: [
+          currentHoverPixel.linear.b <= 1
+            ? TransferFunctions.sRGB.encode(currentHoverPixel.linear.b)
+            : null
+        ],
+        type: "scatter",
+        mode: "markers",
+        name: "Hover sRGB B",
+        marker: {
+          color: "#0000ff",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: "circle"
+        },
+        hovertemplate:
+          "Hover sRGB B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>",
+        showlegend: false
+      }
+    );
+
+    // HLG hover points - use normal linear scale
+    const hlgSymbol = "diamond";
+    traces.push(
+      {
+        x: [currentHoverPixel.linear.r],
+        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.r)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG R`,
+        marker: {
+          color: "#ff0000",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.g],
+        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.g)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG G`,
+        marker: {
+          color: "#00ff00",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.b],
+        y: [TransferFunctions.HLG.encode(currentHoverPixel.linear.b)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG B`,
+        marker: {
+          color: "#0000ff",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      }
+    );
+
+    // PQ hover points - PQ curve uses x values that are already in the same units
+    // as our linear values (1.0 = 100 nits), so no scaling needed
+    const pqSymbol = "square";
+    traces.push(
+      {
+        x: [currentHoverPixel.linear.r],
+        y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.r)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover PQ R`,
+        marker: {
+          color: "#ff0000",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: pqSymbol
+        },
+        hovertemplate: `Hover PQ R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.g],
+        y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.g)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover PQ G`,
+        marker: {
+          color: "#00ff00",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: pqSymbol
+        },
+        hovertemplate: `Hover PQ G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.b],
+        y: [TransferFunctions.PQ.encode(currentHoverPixel.linear.b)],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover PQ B`,
+        marker: {
+          color: "#0000ff",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: pqSymbol
+        },
+        hovertemplate: `Hover PQ B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      }
+    );
+  }
+
+  const layout = {
+    paper_bgcolor: "#0a0a0a",
+    plot_bgcolor: "#0a0a0a",
+    font: {
+      family:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      color: "#e0e0e0",
+      size: 11
+    },
+    margin: { t: 40, r: 50, b: 60, l: 60 },
+    xaxis: {
+      title: "Linear Light (1=100 nits)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 6], // Default view shows 0-600 nits
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
+    },
+    yaxis: {
+      title: "Encoded Signal (0-1)",
+      gridcolor: "#333",
+      zerolinecolor: "#555",
+      range: [0, 1.05],
+      // dtick removed - Plotly will auto-adjust based on zoom
+      autorange: false,
+      fixedrange: false // Allow zooming via axis drag
+    },
+    yaxis2: {
+      // title: 'Histogram (%)',
+      // titlefont: { color: '#888' },
+      // tickfont: { color: '#888' },
+      overlaying: "y",
+      side: "right",
+      range: [0, 0.9], // Increased range to make histogram 1/3 height
+      showgrid: false,
+      zeroline: false,
+      showticklabels: false, // Hide tick labels
+      showline: false, // Hide axis line
+      fixedrange: true // Prevent histogram from moving when zooming
+    },
+    showlegend: true,
+    legend: {
+      x: 0.02,
+      y: 0.98,
+      bgcolor: "rgba(0,0,0,0.5)"
+    },
+    hovermode: "closest",
+    hoverlabel: {
+      bgcolor: "rgba(0,0,0,0.8)",
+      font: {
+        family:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        color: "white"
+      }
+    },
+    title: "OETF (Camera Encoding Curves)"
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: true,
+    scrollZoom: true, // Enable scroll zoom
+    doubleClick: "reset", // Double-click resets to original view
+    modeBarButtonsToRemove: ["pan2d", "select2d", "lasso2d"], // Remove pan tool but keep zoom
+    modeBarButtonsToAdd: [],
+    displaylogo: false
+  };
+
+  Plotly.react("combinedGraph", traces, layout, config).then(function () {
+    // Add event handler to constrain axis ranges (as backup for zoom operations)
+    const graphDiv = document.getElementById("combinedGraph");
+    graphDiv.on("plotly_relayout", function (eventdata) {
+      let update = {};
+      let needsUpdate = false;
+
+      // Check and constrain x-axis (for zoom operations)
+      if (
+        eventdata["xaxis.range[0]"] !== undefined &&
+        eventdata["xaxis.range[0]"] < 0
+      ) {
+        update["xaxis.range[0]"] = 0;
+        if (eventdata["xaxis.range[1]"] !== undefined) {
+          update["xaxis.range[1]"] = eventdata["xaxis.range[1]"];
+        }
+        needsUpdate = true;
+      }
+
+      // Check and constrain y-axis (for zoom operations)
+      if (
+        eventdata["yaxis.range[0]"] !== undefined &&
+        eventdata["yaxis.range[0]"] < 0
+      ) {
+        update["yaxis.range[0]"] = 0;
+        if (eventdata["yaxis.range[1]"] !== undefined) {
+          update["yaxis.range[1]"] = eventdata["yaxis.range[1]"];
+        }
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        Plotly.relayout("combinedGraph", update);
+      }
+    });
+  });
 }
 
 // Apply HDR encoding to canvas pixels if HDR mode is enabled
 function applyHDREncoding() {
-    if (!hdrMode) return;
-    
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imgData.data;
-    
-    for (let i = 0; i < data.length; i += 4) {
-        // Convert sRGB values (0-255) to linear (0-1)
-        let r = data[i] / 255;
-        let g = data[i + 1] / 255;
-        let b = data[i + 2] / 255;
-        
-        // Apply sRGB to linear conversion
-        r = TransferFunctions.sRGB.decode(r);
-        g = TransferFunctions.sRGB.decode(g);
-        b = TransferFunctions.sRGB.decode(b);
-        
-        // Apply PQ encoding (linear to PQ signal)
-        r = TransferFunctions.PQ.encode(r);
-        g = TransferFunctions.PQ.encode(g);
-        b = TransferFunctions.PQ.encode(b);
-        
-        // Convert back to 0-255 range
-        data[i] = Math.round(r * 255);
-        data[i + 1] = Math.round(g * 255);
-        data[i + 2] = Math.round(b * 255);
-    }
-    
-    ctx.putImageData(imgData, 0, 0);
+  if (!hdrMode) return;
+
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imgData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Convert sRGB values (0-255) to linear (0-1)
+    let r = data[i] / 255;
+    let g = data[i + 1] / 255;
+    let b = data[i + 2] / 255;
+
+    // Apply sRGB to linear conversion
+    r = TransferFunctions.sRGB.decode(r);
+    g = TransferFunctions.sRGB.decode(g);
+    b = TransferFunctions.sRGB.decode(b);
+
+    // Apply PQ encoding (linear to PQ signal)
+    r = TransferFunctions.PQ.encode(r);
+    g = TransferFunctions.PQ.encode(g);
+    b = TransferFunctions.PQ.encode(b);
+
+    // Convert back to 0-255 range
+    data[i] = Math.round(r * 255);
+    data[i + 1] = Math.round(g * 255);
+    data[i + 2] = Math.round(b * 255);
+  }
+
+  ctx.putImageData(imgData, 0, 0);
 }
 
 // Generate synthetic test patterns
 function generateTestPattern(type) {
-    const width = 512;
-    const height = 512;
-    canvas.width = width;
-    canvas.height = height;
-    
-    const img = document.getElementById('uploadedImage');
-    
-    switch(type) {
-        case 'red':
-            ctx.fillStyle = 'rgb(255, 0, 0)';
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'green':
-            ctx.fillStyle = 'rgb(0, 255, 0)';
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'blue':
-            ctx.fillStyle = 'rgb(0, 0, 255)';
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'gradient':
-            const gradient = ctx.createLinearGradient(0, 0, width, 0);
-            gradient.addColorStop(0, 'rgb(0, 0, 0)');
-            gradient.addColorStop(1, 'rgb(255, 255, 255)');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'white':
-            ctx.fillStyle = 'rgb(255, 255, 255)';
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'black':
-            ctx.fillStyle = 'rgb(0, 0, 0)';
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'radialGradient':
-            const radialGrad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, Math.min(width, height)/2);
-            radialGrad.addColorStop(0, 'rgb(255, 255, 255)');
-            radialGrad.addColorStop(1, 'rgb(0, 0, 0)');
-            ctx.fillStyle = radialGrad;
-            ctx.fillRect(0, 0, width, height);
-            break;
-            
-        case 'graySteps':
-            const steps = 10;
-            const stepWidth = width / steps;
-            for (let i = 0; i < steps; i++) {
-                const gray = Math.round((i / (steps - 1)) * 255);
-                ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
-                ctx.fillRect(i * stepWidth, 0, stepWidth, height);
-            }
-            break;
-            
-        case 'colorBars':
-            const colors = [
-                'rgb(255, 255, 255)', // white
-                'rgb(255, 255, 0)',   // yellow
-                'rgb(0, 255, 255)',   // cyan
-                'rgb(0, 255, 0)',     // green
-                'rgb(255, 0, 255)',   // magenta
-                'rgb(255, 0, 0)',     // red
-                'rgb(0, 0, 255)',     // blue
-                'rgb(0, 0, 0)'        // black
-            ];
-            const barWidth = width / colors.length;
-            colors.forEach((color, i) => {
-                ctx.fillStyle = color;
-                ctx.fillRect(i * barWidth, 0, barWidth, height);
-            });
-            break;
-    }
-    
-    // Apply HDR encoding if enabled
-    applyHDREncoding();
-    
-    // Convert canvas to image
-    img.src = canvas.toDataURL();
-    img.style.display = 'block';
-    img.onload = function() {
-        imageData = ctx.getImageData(0, 0, width, height);
-        document.getElementById('imageInfo').innerHTML = `
-            <strong>Test Pattern:</strong> ${type}${hdrMode ? ' (HDR)' : ''}<br>
+  const width = 512;
+  const height = 512;
+  canvas.width = width;
+  canvas.height = height;
+
+  const img = document.getElementById("uploadedImage");
+
+  switch (type) {
+    case "red":
+      ctx.fillStyle = "rgb(255, 0, 0)";
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "green":
+      ctx.fillStyle = "rgb(0, 255, 0)";
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "blue":
+      ctx.fillStyle = "rgb(0, 0, 255)";
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "gradient":
+      const gradient = ctx.createLinearGradient(0, 0, width, 0);
+      gradient.addColorStop(0, "rgb(0, 0, 0)");
+      gradient.addColorStop(1, "rgb(255, 255, 255)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "white":
+      ctx.fillStyle = "rgb(255, 255, 255)";
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "black":
+      ctx.fillStyle = "rgb(0, 0, 0)";
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "radialGradient":
+      const radialGrad = ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        0,
+        width / 2,
+        height / 2,
+        Math.min(width, height) / 2
+      );
+      radialGrad.addColorStop(0, "rgb(255, 255, 255)");
+      radialGrad.addColorStop(1, "rgb(0, 0, 0)");
+      ctx.fillStyle = radialGrad;
+      ctx.fillRect(0, 0, width, height);
+      break;
+
+    case "graySteps":
+      const steps = 10;
+      const stepWidth = width / steps;
+      for (let i = 0; i < steps; i++) {
+        const gray = Math.round((i / (steps - 1)) * 255);
+        ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+        ctx.fillRect(i * stepWidth, 0, stepWidth, height);
+      }
+      break;
+
+    case "colorBars":
+      const colors = [
+        "rgb(255, 255, 255)", // white
+        "rgb(255, 255, 0)", // yellow
+        "rgb(0, 255, 255)", // cyan
+        "rgb(0, 255, 0)", // green
+        "rgb(255, 0, 255)", // magenta
+        "rgb(255, 0, 0)", // red
+        "rgb(0, 0, 255)", // blue
+        "rgb(0, 0, 0)" // black
+      ];
+      const barWidth = width / colors.length;
+      colors.forEach((color, i) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(i * barWidth, 0, barWidth, height);
+      });
+      break;
+  }
+
+  // Apply HDR encoding if enabled
+  applyHDREncoding();
+
+  // Convert canvas to image
+  img.src = canvas.toDataURL();
+  img.style.display = "block";
+  img.onload = function () {
+    imageData = ctx.getImageData(0, 0, width, height);
+    document.getElementById("imageInfo").innerHTML = `
+            <strong>Test Pattern:</strong> ${type}${hdrMode ? " (HDR)" : ""}<br>
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Synthetic
         `;
-        histogram = calculateHistogram(imageData);
-        updateGraphs();
-        
-        // Save to localStorage
-        saveImageState({
-            dataUrl: canvas.toDataURL('image/png'),
-            name: `Test Pattern - ${type}`,
-            width: width,
-            height: height,
-            size: null, // Synthetic images don't have file size
-            type: 'Test Pattern'
-        });
-    };
+    histogram = calculateHistogram(imageData);
+    updateGraphs();
+
+    // Save to localStorage
+    saveImageState({
+      dataUrl: canvas.toDataURL("image/png"),
+      name: `Test Pattern - ${type}`,
+      width: width,
+      height: height,
+      size: null, // Synthetic images don't have file size
+      type: "Test Pattern"
+    });
+  };
 }
 
 // Generate sample real images using canvas gradients and patterns
 function generateSampleImage(type) {
-    const width = 512;
-    const height = 512;
-    canvas.width = width;
-    canvas.height = height;
-    
-    const img = document.getElementById('uploadedImage');
-    
-    switch(type) {
-        case 'landscape':
-            // Sky gradient
-            const skyGradient = ctx.createLinearGradient(0, 0, 0, height * 0.6);
-            skyGradient.addColorStop(0, 'rgb(135, 206, 235)');
-            skyGradient.addColorStop(1, 'rgb(255, 255, 200)');
-            ctx.fillStyle = skyGradient;
-            ctx.fillRect(0, 0, width, height * 0.6);
-            
-            // Ground
-            const groundGradient = ctx.createLinearGradient(0, height * 0.6, 0, height);
-            groundGradient.addColorStop(0, 'rgb(34, 139, 34)');
-            groundGradient.addColorStop(1, 'rgb(20, 80, 20)');
-            ctx.fillStyle = groundGradient;
-            ctx.fillRect(0, height * 0.6, width, height * 0.4);
-            
-            // Sun
-            ctx.fillStyle = 'rgb(255, 220, 100)';
-            ctx.beginPath();
-            ctx.arc(width * 0.8, height * 0.2, 40, 0, Math.PI * 2);
-            ctx.fill();
-            break;
-            
-        case 'sunset':
-            const sunsetGradient = ctx.createLinearGradient(0, 0, 0, height);
-            sunsetGradient.addColorStop(0, 'rgb(255, 94, 77)');
-            sunsetGradient.addColorStop(0.3, 'rgb(255, 154, 77)');
-            sunsetGradient.addColorStop(0.6, 'rgb(255, 206, 84)');
-            sunsetGradient.addColorStop(0.8, 'rgb(237, 117, 57)');
-            sunsetGradient.addColorStop(1, 'rgb(95, 39, 205)');
-            ctx.fillStyle = sunsetGradient;
-            ctx.fillRect(0, 0, width, height);
-            
-            // Sun
-            ctx.fillStyle = 'rgb(255, 200, 50)';
-            ctx.beginPath();
-            ctx.arc(width * 0.5, height * 0.7, 60, 0, Math.PI * 2);
-            ctx.fill();
-            break;
-            
-        case 'neon':
-            // Dark background
-            ctx.fillStyle = 'rgb(10, 10, 30)';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Neon lights effect
-            for (let i = 0; i < 20; i++) {
-                const x = Math.random() * width;
-                const y = Math.random() * height;
-                const r = Math.random() * 255;
-                const g = Math.random() * 255;
-                const b = Math.random() * 255;
-                
-                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
-                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
-                gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.5)`);
-                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x - 50, y - 50, 100, 100);
+  const width = 512;
+  const height = 512;
+  canvas.width = width;
+  canvas.height = height;
+
+  const img = document.getElementById("uploadedImage");
+
+  switch (type) {
+    case "landscape":
+      // Sky gradient
+      const skyGradient = ctx.createLinearGradient(0, 0, 0, height * 0.6);
+      skyGradient.addColorStop(0, "rgb(135, 206, 235)");
+      skyGradient.addColorStop(1, "rgb(255, 255, 200)");
+      ctx.fillStyle = skyGradient;
+      ctx.fillRect(0, 0, width, height * 0.6);
+
+      // Ground
+      const groundGradient = ctx.createLinearGradient(
+        0,
+        height * 0.6,
+        0,
+        height
+      );
+      groundGradient.addColorStop(0, "rgb(34, 139, 34)");
+      groundGradient.addColorStop(1, "rgb(20, 80, 20)");
+      ctx.fillStyle = groundGradient;
+      ctx.fillRect(0, height * 0.6, width, height * 0.4);
+
+      // Sun
+      ctx.fillStyle = "rgb(255, 220, 100)";
+      ctx.beginPath();
+      ctx.arc(width * 0.8, height * 0.2, 40, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case "sunset":
+      const sunsetGradient = ctx.createLinearGradient(0, 0, 0, height);
+      sunsetGradient.addColorStop(0, "rgb(255, 94, 77)");
+      sunsetGradient.addColorStop(0.3, "rgb(255, 154, 77)");
+      sunsetGradient.addColorStop(0.6, "rgb(255, 206, 84)");
+      sunsetGradient.addColorStop(0.8, "rgb(237, 117, 57)");
+      sunsetGradient.addColorStop(1, "rgb(95, 39, 205)");
+      ctx.fillStyle = sunsetGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Sun
+      ctx.fillStyle = "rgb(255, 200, 50)";
+      ctx.beginPath();
+      ctx.arc(width * 0.5, height * 0.7, 60, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case "neon":
+      // Dark background
+      ctx.fillStyle = "rgb(10, 10, 30)";
+      ctx.fillRect(0, 0, width, height);
+
+      // Neon lights effect
+      for (let i = 0; i < 20; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        const r = Math.random() * 255;
+        const g = Math.random() * 255;
+        const b = Math.random() * 255;
+
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.5)`);
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - 50, y - 50, 100, 100);
+      }
+      break;
+
+    case "city":
+      // Dark sky
+      const nightGradient = ctx.createLinearGradient(0, 0, 0, height);
+      nightGradient.addColorStop(0, "rgb(10, 10, 40)");
+      nightGradient.addColorStop(1, "rgb(30, 30, 60)");
+      ctx.fillStyle = nightGradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Buildings with windows
+      for (let i = 0; i < 8; i++) {
+        const bHeight = Math.random() * height * 0.6 + height * 0.2;
+        const bWidth = width / 10;
+        const bX = i * (width / 8);
+
+        // Building
+        ctx.fillStyle = `rgb(${20 + i * 5}, ${20 + i * 5}, ${30 + i * 5})`;
+        ctx.fillRect(bX, height - bHeight, bWidth, bHeight);
+
+        // Windows
+        for (let w = 0; w < 4; w++) {
+          for (let h = 0; h < Math.floor(bHeight / 30); h++) {
+            if (Math.random() > 0.3) {
+              ctx.fillStyle = `rgb(${255}, ${
+                200 + Math.random() * 55
+              }, ${100})`;
+              ctx.fillRect(
+                bX + w * 15 + 10,
+                height - bHeight + h * 30 + 10,
+                10,
+                15
+              );
             }
-            break;
-            
-        case 'city':
-            // Dark sky
-            const nightGradient = ctx.createLinearGradient(0, 0, 0, height);
-            nightGradient.addColorStop(0, 'rgb(10, 10, 40)');
-            nightGradient.addColorStop(1, 'rgb(30, 30, 60)');
-            ctx.fillStyle = nightGradient;
-            ctx.fillRect(0, 0, width, height);
-            
-            // Buildings with windows
-            for (let i = 0; i < 8; i++) {
-                const bHeight = Math.random() * height * 0.6 + height * 0.2;
-                const bWidth = width / 10;
-                const bX = i * (width / 8);
-                
-                // Building
-                ctx.fillStyle = `rgb(${20 + i * 5}, ${20 + i * 5}, ${30 + i * 5})`;
-                ctx.fillRect(bX, height - bHeight, bWidth, bHeight);
-                
-                // Windows
-                for (let w = 0; w < 4; w++) {
-                    for (let h = 0; h < Math.floor(bHeight / 30); h++) {
-                        if (Math.random() > 0.3) {
-                            ctx.fillStyle = `rgb(${255}, ${200 + Math.random() * 55}, ${100})`;
-                            ctx.fillRect(bX + w * 15 + 10, height - bHeight + h * 30 + 10, 10, 15);
-                        }
-                    }
-                }
-            }
-            break;
-            
-        case 'fire':
-            // Dark background
-            ctx.fillStyle = 'rgb(10, 5, 0)';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Fire gradient effect
-            for (let i = 0; i < 30; i++) {
-                const fireGrad = ctx.createRadialGradient(
-                    width/2 + (Math.random() - 0.5) * 100,
-                    height * 0.7 + (Math.random() - 0.5) * 50,
-                    0,
-                    width/2,
-                    height * 0.7,
-                    100 + Math.random() * 50
-                );
-                fireGrad.addColorStop(0, `rgba(255, ${200 + Math.random() * 55}, 0, 0.8)`);
-                fireGrad.addColorStop(0.5, `rgba(255, ${100 + Math.random() * 50}, 0, 0.4)`);
-                fireGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
-                ctx.fillStyle = fireGrad;
-                ctx.fillRect(0, 0, width, height);
-            }
-            break;
-            
-        case 'ocean':
-            // Ocean gradient
-            const oceanGrad = ctx.createLinearGradient(0, 0, 0, height);
-            oceanGrad.addColorStop(0, 'rgb(135, 206, 250)'); // sky blue
-            oceanGrad.addColorStop(0.4, 'rgb(100, 180, 220)');
-            oceanGrad.addColorStop(0.5, 'rgb(0, 119, 190)'); // ocean blue
-            oceanGrad.addColorStop(1, 'rgb(0, 50, 100)'); // deep ocean
-            ctx.fillStyle = oceanGrad;
-            ctx.fillRect(0, 0, width, height);
-            
-            // Wave patterns
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            for (let i = 0; i < 5; i++) {
-                ctx.beginPath();
-                const y = height * 0.4 + i * 20;
-                for (let x = 0; x < width; x += 10) {
-                    const waveY = y + Math.sin((x + i * 50) * 0.02) * 10;
-                    if (x === 0) {
-                        ctx.moveTo(x, waveY);
-                    } else {
-                        ctx.lineTo(x, waveY);
-                    }
-                }
-                ctx.stroke();
-            }
-            break;
-    }
-    
-    // Apply HDR encoding if enabled
-    applyHDREncoding();
-    
-    // Convert canvas to image
-    img.src = canvas.toDataURL();
-    img.style.display = 'block';
-    img.onload = function() {
-        imageData = ctx.getImageData(0, 0, width, height);
-        document.getElementById('imageInfo').innerHTML = `
-            <strong>Sample:</strong> ${type}${hdrMode ? ' (HDR)' : ''}<br>
+          }
+        }
+      }
+      break;
+
+    case "fire":
+      // Dark background
+      ctx.fillStyle = "rgb(10, 5, 0)";
+      ctx.fillRect(0, 0, width, height);
+
+      // Fire gradient effect
+      for (let i = 0; i < 30; i++) {
+        const fireGrad = ctx.createRadialGradient(
+          width / 2 + (Math.random() - 0.5) * 100,
+          height * 0.7 + (Math.random() - 0.5) * 50,
+          0,
+          width / 2,
+          height * 0.7,
+          100 + Math.random() * 50
+        );
+        fireGrad.addColorStop(
+          0,
+          `rgba(255, ${200 + Math.random() * 55}, 0, 0.8)`
+        );
+        fireGrad.addColorStop(
+          0.5,
+          `rgba(255, ${100 + Math.random() * 50}, 0, 0.4)`
+        );
+        fireGrad.addColorStop(1, "rgba(255, 0, 0, 0)");
+        ctx.fillStyle = fireGrad;
+        ctx.fillRect(0, 0, width, height);
+      }
+      break;
+
+    case "ocean":
+      // Ocean gradient
+      const oceanGrad = ctx.createLinearGradient(0, 0, 0, height);
+      oceanGrad.addColorStop(0, "rgb(135, 206, 250)"); // sky blue
+      oceanGrad.addColorStop(0.4, "rgb(100, 180, 220)");
+      oceanGrad.addColorStop(0.5, "rgb(0, 119, 190)"); // ocean blue
+      oceanGrad.addColorStop(1, "rgb(0, 50, 100)"); // deep ocean
+      ctx.fillStyle = oceanGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Wave patterns
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        const y = height * 0.4 + i * 20;
+        for (let x = 0; x < width; x += 10) {
+          const waveY = y + Math.sin((x + i * 50) * 0.02) * 10;
+          if (x === 0) {
+            ctx.moveTo(x, waveY);
+          } else {
+            ctx.lineTo(x, waveY);
+          }
+        }
+        ctx.stroke();
+      }
+      break;
+  }
+
+  // Apply HDR encoding if enabled
+  applyHDREncoding();
+
+  // Convert canvas to image
+  img.src = canvas.toDataURL();
+  img.style.display = "block";
+  img.onload = function () {
+    imageData = ctx.getImageData(0, 0, width, height);
+    document.getElementById("imageInfo").innerHTML = `
+            <strong>Sample:</strong> ${type}${hdrMode ? " (HDR)" : ""}<br>
             <strong>Dimensions:</strong> ${width} × ${height}<br>
             <strong>Type:</strong> Generated
         `;
-        histogram = calculateHistogram(imageData);
-        updateGraphs();
-        
-        // Save to localStorage
-        saveImageState({
-            dataUrl: canvas.toDataURL('image/png'),
-            name: `Sample - ${type}`,
-            width: width,
-            height: height,
-            size: null, // Generated images don't have file size
-            type: 'Generated Sample'
-        });
-    };
+    histogram = calculateHistogram(imageData);
+    updateGraphs();
+
+    // Save to localStorage
+    saveImageState({
+      dataUrl: canvas.toDataURL("image/png"),
+      name: `Sample - ${type}`,
+      width: width,
+      height: height,
+      size: null, // Generated images don't have file size
+      type: "Generated Sample"
+    });
+  };
 }
 
 // localStorage helper functions for image persistence
 function saveImageState(imageInfo) {
-    try {
-        const imageState = {
-            dataUrl: imageInfo.dataUrl,
-            name: imageInfo.name,
-            width: imageInfo.width,
-            height: imageInfo.height,
-            size: imageInfo.size,
-            type: imageInfo.type || 'Generated',
-            timestamp: Date.now()
-        };
-        localStorage.setItem('hdr_analyzer_image', JSON.stringify(imageState));
-        console.log('Image state saved to localStorage:', imageInfo.name);
-    } catch (e) {
-        console.warn('Failed to save image state to localStorage:', e);
-    }
+  try {
+    const imageState = {
+      dataUrl: imageInfo.dataUrl,
+      name: imageInfo.name,
+      width: imageInfo.width,
+      height: imageInfo.height,
+      size: imageInfo.size,
+      type: imageInfo.type || "Generated",
+      timestamp: Date.now()
+    };
+    localStorage.setItem("hdr_analyzer_image", JSON.stringify(imageState));
+    console.log("Image state saved to localStorage:", imageInfo.name);
+  } catch (e) {
+    console.warn("Failed to save image state to localStorage:", e);
+  }
 }
 
 function loadImageState() {
-    try {
-        const stored = localStorage.getItem('hdr_analyzer_image');
-        if (!stored) return null;
-        
-        const imageState = JSON.parse(stored);
-        const now = Date.now();
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-        
-        // Check if image is less than 7 days old
-        if (now - imageState.timestamp > sevenDaysMs) {
-            console.log('Stored image is older than 7 days, clearing...');
-            clearImageState();
-            return null;
-        }
-        
-        return imageState;
-    } catch (e) {
-        console.warn('Failed to load image state from localStorage:', e);
-        return null;
+  try {
+    const stored = localStorage.getItem("hdr_analyzer_image");
+    if (!stored) return null;
+
+    const imageState = JSON.parse(stored);
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+    // Check if image is less than 7 days old
+    if (now - imageState.timestamp > sevenDaysMs) {
+      console.log("Stored image is older than 7 days, clearing...");
+      clearImageState();
+      return null;
     }
+
+    return imageState;
+  } catch (e) {
+    console.warn("Failed to load image state from localStorage:", e);
+    return null;
+  }
 }
 
 function clearImageState() {
-    try {
-        localStorage.removeItem('hdr_analyzer_image');
-        console.log('Image state cleared from localStorage');
-    } catch (e) {
-        console.warn('Failed to clear image state from localStorage:', e);
-    }
+  try {
+    localStorage.removeItem("hdr_analyzer_image");
+    console.log("Image state cleared from localStorage");
+  } catch (e) {
+    console.warn("Failed to clear image state from localStorage:", e);
+  }
 }
 
 // Handle image upload
 function handleImageUpload(file) {
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        const img = document.getElementById('uploadedImage');
-        img.onload = function() {
-            // Show image
-            img.style.display = 'block';
-            
-            // Draw to canvas for pixel data extraction
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            ctx.drawImage(img, 0, 0);
-            
-            // Get image data
-            imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Update info
-            document.getElementById('imageInfo').innerHTML = `
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    const img = document.getElementById("uploadedImage");
+    img.onload = function () {
+      // Show image
+      img.style.display = "block";
+
+      // Draw to canvas for pixel data extraction
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0);
+
+      // Get image data
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // Update info
+      document.getElementById("imageInfo").innerHTML = `
                 <strong>Image:</strong> ${file.name}<br>
-                <strong>Dimensions:</strong> ${img.naturalWidth} × ${img.naturalHeight}<br>
+                <strong>Dimensions:</strong> ${img.naturalWidth} × ${
+        img.naturalHeight
+      }<br>
                 <strong>Size:</strong> ${(file.size / 1024).toFixed(1)} KB
             `;
-            
-            // Calculate histogram
-            histogram = calculateHistogram(imageData);
-            
-            // Update graphs
-            updateGraphs();
-            
-            // Save to localStorage
-            saveImageState({
-                dataUrl: e.target.result,
-                name: file.name,
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-                size: file.size,
-                type: 'Uploaded'
-            });
-        };
-        img.src = e.target.result;
+
+      // Calculate histogram
+      histogram = calculateHistogram(imageData);
+
+      // Update graphs
+      updateGraphs();
+
+      // Save to localStorage
+      saveImageState({
+        dataUrl: e.target.result,
+        name: file.name,
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        size: file.size,
+        type: "Uploaded"
+      });
     };
-    
-    reader.readAsDataURL(file);
+    img.src = e.target.result;
+  };
+
+  reader.readAsDataURL(file);
 }
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize canvas and context
-    canvas = document.getElementById('canvas');
-    ctx = canvas.getContext('2d');
-    
-    // Set initial UI state based on saved transfer mode
-    const oetfMode = document.getElementById('oetfMode');
-    const eotfMode = document.getElementById('eotfMode');
-    
-    if (transferMode === 'oetf') {
-        oetfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
-        oetfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        eotfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
-        eotfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
-    } else {
-        eotfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
-        eotfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        oetfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
-        oetfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
-    }
-    
-    initializeGraphs();
-    
-    // Add histogram visualization controls
-    if (typeof addHistogramControls === 'function') {
-        addHistogramControls();
-    }
-    
-    // Try to restore saved image from localStorage
-    const savedImageState = loadImageState();
-    if (savedImageState) {
-        // Restore saved image
-        console.log('Restoring saved image:', savedImageState.name);
-        const img = document.getElementById('uploadedImage');
-        img.src = savedImageState.dataUrl;
-        img.style.display = 'block';
-        
-        img.onload = function() {
-            // Draw to canvas for analysis
-            canvas.width = savedImageState.width;
-            canvas.height = savedImageState.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // Get image data
-            imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            // Update info display
-            document.getElementById('imageInfo').innerHTML = `
+document.addEventListener("DOMContentLoaded", function () {
+  // Initialize canvas and context
+  canvas = document.getElementById("canvas");
+  ctx = canvas.getContext("2d");
+
+  // Set initial UI state based on saved transfer mode
+  const oetfMode = document.getElementById("oetfMode");
+  const eotfMode = document.getElementById("eotfMode");
+
+  if (transferMode === "oetf") {
+    oetfMode.classList.add("bg-brand-blue", "text-white", "font-semibold");
+    oetfMode.classList.remove(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    eotfMode.classList.remove("bg-brand-blue", "text-white", "font-semibold");
+    eotfMode.classList.add(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+  } else {
+    eotfMode.classList.add("bg-brand-blue", "text-white", "font-semibold");
+    eotfMode.classList.remove(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    oetfMode.classList.remove("bg-brand-blue", "text-white", "font-semibold");
+    oetfMode.classList.add(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+  }
+
+  initializeGraphs();
+
+  // Add histogram visualization controls
+  if (typeof addHistogramControls === "function") {
+    addHistogramControls();
+  }
+
+  // Try to restore saved image from localStorage
+  const savedImageState = loadImageState();
+  if (savedImageState) {
+    // Restore saved image
+    console.log("Restoring saved image:", savedImageState.name);
+    const img = document.getElementById("uploadedImage");
+    img.src = savedImageState.dataUrl;
+    img.style.display = "block";
+
+    img.onload = function () {
+      // Draw to canvas for analysis
+      canvas.width = savedImageState.width;
+      canvas.height = savedImageState.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Get image data
+      imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      // Update info display
+      document.getElementById("imageInfo").innerHTML = `
                 <strong>Restored:</strong> ${savedImageState.type}<br>
-                <strong>File:</strong> ${savedImageState.name.substring(0, 30)}${savedImageState.name.length > 30 ? '...' : ''}<br>
-                <strong>Dimensions:</strong> ${savedImageState.width} × ${savedImageState.height}
+                <strong>File:</strong> ${savedImageState.name.substring(
+                  0,
+                  30
+                )}${savedImageState.name.length > 30 ? "..." : ""}<br>
+                <strong>Dimensions:</strong> ${savedImageState.width} × ${
+        savedImageState.height
+      }
             `;
-            
-            // Calculate histogram
-            histogram = calculateHistogram(imageData);
-            
-            // Update graphs
-            updateGraphs();
-        };
+
+      // Calculate histogram
+      histogram = calculateHistogram(imageData);
+
+      // Update graphs
+      updateGraphs();
+    };
+  } else {
+    // No saved image, load Linear Gradient as default
+    console.log("No saved image found, loading Linear Gradient as default");
+    generateTestPattern("gradient");
+    // samplesTrigger will be initialized later, update it after DOM is ready
+    setTimeout(() => {
+      const trigger = document.getElementById("samplesTrigger");
+      if (trigger) {
+        trigger.innerHTML = "<span>▼</span> Linear Gradient";
+      }
+    }, 0);
+  }
+
+  const uploadArea = document.getElementById("uploadArea");
+  const fileInput = document.getElementById("fileInput");
+  const showCurves = document.getElementById("showCurves");
+  const showHistogram = document.getElementById("showHistogram");
+  const hdrToggle = document.getElementById("hdrToggle");
+  const uploadedImage = document.getElementById("uploadedImage");
+  const hoverIndicator = document.getElementById("hoverIndicator");
+  const separateView = document.getElementById("separateView");
+  const combinedView = document.getElementById("combinedView");
+  const graphsContainer = document.getElementById("graphsContainer");
+  const combinedGraph = document.getElementById("combinedGraph");
+  const peakBrightnessSelect = document.getElementById("peakBrightness");
+
+  // Load Image dropdown functionality
+  const loadImageTrigger = document.getElementById("loadImageTrigger");
+  const loadImageMenu = document.getElementById("loadImageMenu");
+  const uploadCard = document.getElementById("uploadCard");
+  const closeLoadMenu = document.getElementById("closeLoadMenu");
+  const urlInputCard = document.getElementById("urlInputCard");
+  const loadUrlBtnCard = document.getElementById("loadUrlBtnCard");
+
+  // Toggle load image menu
+  if (loadImageTrigger) {
+    loadImageTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadImageMenu.classList.toggle("hidden");
+    });
+  }
+
+  // Close button
+  if (closeLoadMenu) {
+    closeLoadMenu.addEventListener("click", () => {
+      loadImageMenu.classList.add("hidden");
+    });
+  }
+
+  // Handle upload card click
+  if (uploadCard) {
+    uploadCard.addEventListener("click", function (e) {
+      e.stopPropagation();
+      fileInput.click();
+      loadImageMenu.classList.add("hidden");
+    });
+  }
+
+  // Handle URL input in card
+  if (urlInputCard) {
+    // Load URL when Enter pressed
+    urlInputCard.addEventListener("keypress", function (e) {
+      if (e.key === "Enter" && this.value.trim()) {
+        if (typeof loadImageFromURL === "function") {
+          loadImageFromURL(this.value);
+          loadImageMenu.classList.add("hidden");
+        }
+      }
+    });
+  }
+
+  // Handle sample cards
+  document.querySelectorAll(".sample-card").forEach((card) => {
+    card.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const sampleType = this.dataset.sample;
+      if (sampleType) {
+        // Test patterns use different function than scenes
+        const testPatterns = [
+          "red",
+          "green",
+          "blue",
+          "white",
+          "black",
+          "gradient",
+          "radialGradient",
+          "colorBars",
+          "graySteps"
+        ];
+        const scenes = ["landscape", "sunset", "neon", "city", "fire", "ocean"];
+
+        if (testPatterns.includes(sampleType)) {
+          generateTestPattern(sampleType);
+        } else if (scenes.includes(sampleType)) {
+          generateSampleImage(sampleType);
+        }
+        loadImageMenu.classList.add("hidden");
+      }
+    });
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener("click", (e) => {
+    if (loadImageMenu && !loadImageMenu.contains(e.target)) {
+      loadImageMenu.classList.add("hidden");
+    }
+  });
+
+  // File input change
+  fileInput.addEventListener("change", function (e) {
+    if (e.target.files.length > 0) {
+      handleImageUpload(e.target.files[0]);
+    }
+  });
+
+  // Drag and drop on image container for better UX
+  const imageContainer = document.getElementById("imageContainer");
+
+  // Prevent default drag behaviors on document
+  document.addEventListener("dragover", function (e) {
+    e.preventDefault();
+  });
+
+  document.addEventListener("drop", function (e) {
+    e.preventDefault();
+  });
+
+  // Handle drop on image container
+  if (imageContainer) {
+    imageContainer.addEventListener("dragover", function (e) {
+      e.preventDefault();
+      imageContainer.classList.add("ring-2", "ring-brand-blue");
+    });
+
+    imageContainer.addEventListener("dragleave", function (e) {
+      e.preventDefault();
+      imageContainer.classList.remove("ring-2", "ring-brand-blue");
+    });
+
+    imageContainer.addEventListener("drop", function (e) {
+      e.preventDefault();
+      imageContainer.classList.remove("ring-2", "ring-brand-blue");
+
+      if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith("image/")) {
+          handleImageUpload(file);
+        }
+      }
+    });
+  }
+
+  // Show/hide toggles
+  showCurves.addEventListener("change", updateGraphs);
+  showHistogram.addEventListener("change", updateGraphs);
+
+  // HDR toggle
+  hdrToggle.addEventListener("change", function () {
+    hdrMode = this.checked;
+    // Re-generate current synthetic image if one is loaded
+    const imageInfo = document.getElementById("imageInfo").innerHTML;
+    if (imageInfo.includes("Test Pattern:") || imageInfo.includes("Sample:")) {
+      // Extract the type from the image info
+      const match = imageInfo.match(
+        /<strong>(?:Test Pattern|Sample):<\/strong> (\w+)/
+      );
+      if (match) {
+        const type = match[1].replace(" (HDR)", "");
+        if (imageInfo.includes("Test Pattern:")) {
+          generateTestPattern(type);
+        } else {
+          generateSampleImage(type);
+        }
+      }
+    }
+  });
+
+  // Samples dropdown functionality
+  const samplesTrigger = document.getElementById("samplesTrigger");
+  const samplesMenu = document.getElementById("samplesMenu");
+
+  if (samplesTrigger && samplesMenu) {
+    // Toggle dropdown
+    samplesTrigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      samplesMenu.classList.toggle("active");
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", function () {
+      samplesMenu.classList.remove("active");
+    });
+
+    // Handle sample selection
+    document.querySelectorAll(".sample-item").forEach((item) => {
+      item.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const sample = this.dataset.sample;
+
+        // Update button text
+        samplesTrigger.innerHTML = `<span>▼</span> ${this.textContent.substring(
+          2
+        )}`;
+
+        // Close menu
+        samplesMenu.classList.remove("active");
+
+        // Generate sample
+        if (
+          [
+            "red",
+            "green",
+            "blue",
+            "white",
+            "black",
+            "gradient",
+            "radialGradient",
+            "colorBars",
+            "graySteps"
+          ].includes(sample)
+        ) {
+          generateTestPattern(sample);
+        } else if (
+          ["landscape", "sunset", "neon", "city", "fire", "ocean"].includes(
+            sample
+          )
+        ) {
+          generateSampleImage(sample);
+        }
+      });
+    });
+  }
+
+  // View toggle buttons
+  separateView.addEventListener("click", () => {
+    viewMode = "separate";
+    separateView.classList.add("toolbar-btn-active");
+    combinedView.classList.remove("toolbar-btn-active");
+
+    // Show separate graphs, hide combined
+    document
+      .querySelectorAll(".graph")
+      .forEach((g) => g.classList.remove("hidden"));
+    document.querySelector(".combined-graph").classList.add("hidden");
+    document.querySelector(".combined-graph").classList.remove("block");
+    // Re-initialize for separate view if needed
+    if (transferMode === "eotf") {
+      initializeSeparateEOTFGraphs();
     } else {
-        // No saved image, load Linear Gradient as default
-        console.log('No saved image found, loading Linear Gradient as default');
-        generateTestPattern('gradient');
-        // samplesTrigger will be initialized later, update it after DOM is ready
-        setTimeout(() => {
-            const trigger = document.getElementById('samplesTrigger');
-            if (trigger) {
-                trigger.innerHTML = '<span>▼</span> Linear Gradient';
-            }
-        }, 0);
+      initializeSeparateOETFGraphs();
     }
-    
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-    const showCurves = document.getElementById('showCurves');
-    const showHistogram = document.getElementById('showHistogram');
-    const hdrToggle = document.getElementById('hdrToggle');
-    const uploadedImage = document.getElementById('uploadedImage');
-    const hoverIndicator = document.getElementById('hoverIndicator');
-    const separateView = document.getElementById('separateView');
-    const combinedView = document.getElementById('combinedView');
-    const graphsContainer = document.getElementById('graphsContainer');
-    const combinedGraph = document.getElementById('combinedGraph');
-    const peakBrightnessSelect = document.getElementById('peakBrightness');
-    
-    // Load Image dropdown functionality
-    const loadImageTrigger = document.getElementById('loadImageTrigger');
-    const loadImageMenu = document.getElementById('loadImageMenu');
-    const uploadCard = document.getElementById('uploadCard');
-    const closeLoadMenu = document.getElementById('closeLoadMenu');
-    const urlInputCard = document.getElementById('urlInputCard');
-    const loadUrlBtnCard = document.getElementById('loadUrlBtnCard');
-    
-    // Toggle load image menu
-    if (loadImageTrigger) {
-        loadImageTrigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            loadImageMenu.classList.toggle('hidden');
+    // Always update graphs to include histogram
+    if (histogram) {
+      updateGraphs();
+    }
+  });
+
+  combinedView.addEventListener("click", () => {
+    viewMode = "combined";
+    combinedView.classList.add("toolbar-btn-active");
+    separateView.classList.remove("toolbar-btn-active");
+
+    // Hide separate graphs, show combined
+    document
+      .querySelectorAll(".graph")
+      .forEach((g) => g.classList.add("hidden"));
+    document.querySelector(".combined-graph").classList.remove("hidden");
+    document.querySelector(".combined-graph").classList.add("block");
+    // Re-initialize for combined view
+    if (transferMode === "eotf") {
+      initializeCombinedEOTFGraph();
+    } else {
+      initializeCombinedGraph();
+    }
+    // Always update combined graph to include histogram
+    if (histogram) {
+      updateCombinedGraph();
+    }
+    setTimeout(() => {
+      const combinedGraphDiv = document.getElementById("combinedGraph");
+      if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+        Plotly.Plots.resize("combinedGraph");
+      }
+    }, 100);
+  });
+
+  // Transfer mode toggles (OETF vs EOTF)
+  oetfMode.addEventListener("click", function () {
+    console.log("[DEBUG] OETF mode clicked");
+    transferMode = "oetf";
+    localStorage.setItem("transferMode", "oetf");
+    oetfMode.classList.add("bg-brand-blue", "text-white", "font-semibold");
+    oetfMode.classList.remove(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    eotfMode.classList.remove("bg-brand-blue", "text-white", "font-semibold");
+    eotfMode.classList.add(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    // Re-initialize graphs when switching transfer modes
+    initializeGraphs();
+    // Update graphs to include histogram if available
+    if (histogram) {
+      updateGraphs();
+    }
+  });
+
+  eotfMode.addEventListener("click", function () {
+    console.log("[DEBUG] EOTF mode clicked");
+    transferMode = "eotf";
+    localStorage.setItem("transferMode", "eotf");
+    eotfMode.classList.add("bg-brand-blue", "text-white", "font-semibold");
+    eotfMode.classList.remove(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    oetfMode.classList.remove("bg-brand-blue", "text-white", "font-semibold");
+    oetfMode.classList.add(
+      "bg-transparent",
+      "text-dark-text-muted",
+      "font-medium"
+    );
+    // Re-initialize graphs when switching transfer modes
+    initializeGraphs();
+    // Update graphs to include histogram if available
+    if (histogram) {
+      updateGraphs();
+    }
+  });
+
+  // Peak brightness selector
+  peakBrightnessSelect.addEventListener("change", function () {
+    peakBrightness = parseInt(peakBrightnessSelect.value);
+    updateGraphs();
+  });
+
+  // Initialize with combined view
+  if (viewMode === "combined") {
+    combinedView.classList.add("toolbar-btn-active");
+    separateView.classList.remove("toolbar-btn-active");
+
+    // Hide separate graphs, show combined
+    document
+      .querySelectorAll(".graph")
+      .forEach((g) => g.classList.add("hidden"));
+    document.querySelector(".combined-graph").classList.remove("hidden");
+    document.querySelector(".combined-graph").classList.add("block");
+    // Ensure combined graph resizes properly on initial load
+    setTimeout(() => {
+      const combinedGraphDiv = document.getElementById("combinedGraph");
+      if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+        Plotly.Plots.resize("combinedGraph");
+      }
+    }, 100);
+  }
+
+  // Image hover interaction - optimized for performance
+  uploadedImage.addEventListener("mousemove", function (e) {
+    if (!imageData) return;
+
+    // IMMEDIATE: Update hover indicator position (P0 - instant response)
+    hoverIndicator.style.display = "block";
+    hoverIndicator.style.left = e.clientX + "px";
+    hoverIndicator.style.top = e.clientY + "px";
+
+    // Get image position and dimensions
+    const rect = this.getBoundingClientRect();
+    const scaleX = this.naturalWidth / rect.width;
+    const scaleY = this.naturalHeight / rect.height;
+
+    // Calculate pixel coordinates
+    const x = Math.floor((e.clientX - rect.left) * scaleX);
+    const y = Math.floor((e.clientY - rect.top) * scaleY);
+
+    // Ensure within bounds
+    if (x >= 0 && x < imageData.width && y >= 0 && y < imageData.height) {
+      // Get pixel data
+      const idx = (y * imageData.width + x) * 4;
+      const srgb = {
+        r: imageData.data[idx] / 255,
+        g: imageData.data[idx + 1] / 255,
+        b: imageData.data[idx + 2] / 255
+      };
+
+      // Convert to linear
+      const linear = {
+        r: TransferFunctions.sRGB.decode(srgb.r),
+        g: TransferFunctions.sRGB.decode(srgb.g),
+        b: TransferFunctions.sRGB.decode(srgb.b)
+      };
+
+      const pixel = { x, y, srgb, linear };
+
+      // THROTTLED: Update graphs (P1 - fast but not instant)
+      // Use requestAnimationFrame for smooth updates
+      const now = Date.now();
+      if (now - lastUpdateTime > 16) {
+        // ~60fps throttle
+        lastUpdateTime = now;
+        requestAnimationFrame(() => {
+          highlightPixelOnGraphs(pixel);
         });
+      }
+    } else {
+      // Hide indicator if out of bounds
+      hoverIndicator.style.display = "none";
     }
-    
-    // Close button
-    if (closeLoadMenu) {
-        closeLoadMenu.addEventListener('click', () => {
-            loadImageMenu.classList.add('hidden');
-        });
+  });
+
+  uploadedImage.addEventListener("mouseleave", function () {
+    hoverIndicator.style.display = "none";
+    highlightPixelOnGraphs(null);
+  });
+
+  // Layout Switcher and Splitter functionality
+  const sideLayoutBtn = document.getElementById("sideLayout");
+  const topLayoutBtn = document.getElementById("topLayout");
+  const mainContainer = document.getElementById("mainContainer");
+  const leftPane = document.getElementById("leftPane");
+  const rightPane = document.getElementById("rightPane");
+  const splitter = document.getElementById("splitter");
+
+  // Splitter functionality
+  let isDragging = false;
+  let currentLayout = "side"; // Track current layout
+
+  // Initialize pane sizes
+  let sideSplitRatio = 0.5; // 50% split for side-by-side
+  let topSplitRatio = 0.5; // 50% split for top-bottom
+
+  function updatePaneSizes() {
+    if (currentLayout === "side") {
+      const containerWidth = mainContainer.clientWidth;
+      const leftWidth = containerWidth * sideSplitRatio - 2; // Account for splitter width
+      const rightWidth = containerWidth * (1 - sideSplitRatio) - 2;
+
+      leftPane.style.width = `${leftWidth}px`;
+      leftPane.style.flex = "none";
+      rightPane.style.width = `${rightWidth}px`;
+      rightPane.style.flex = "none";
+    } else {
+      const containerHeight = mainContainer.clientHeight;
+      const topHeight = containerHeight * topSplitRatio - 2; // Account for splitter height
+      const bottomHeight = containerHeight * (1 - topSplitRatio) - 2;
+
+      leftPane.style.height = `${topHeight}px`;
+      leftPane.style.maxHeight = `${topHeight}px`;
+      leftPane.style.flex = "none";
+      rightPane.style.height = `${bottomHeight}px`;
+      rightPane.style.maxHeight = `${bottomHeight}px`;
+      rightPane.style.flex = "none";
     }
-    
-    // Handle upload card click
-    if (uploadCard) {
-        uploadCard.addEventListener('click', function(e) {
-            e.stopPropagation();
-            fileInput.click();
-            loadImageMenu.classList.add('hidden');
-        });
+  }
+
+  // Mouse down on splitter
+  splitter.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    mainContainer.classList.add("resizing");
+    splitter.classList.add("dragging");
+    e.preventDefault();
+  });
+
+  // Mouse move
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+
+    if (currentLayout === "side") {
+      const containerRect = mainContainer.getBoundingClientRect();
+      const mouseX = e.clientX - containerRect.left;
+      sideSplitRatio = Math.max(
+        0.2,
+        Math.min(0.8, mouseX / containerRect.width)
+      );
+      updatePaneSizes();
+    } else {
+      const containerRect = mainContainer.getBoundingClientRect();
+      const mouseY = e.clientY - containerRect.top;
+      topSplitRatio = Math.max(
+        0.2,
+        Math.min(0.8, mouseY / containerRect.height)
+      );
+      updatePaneSizes();
     }
-    
-    // Handle URL input in card
-    if (urlInputCard) {
-        // Load URL when Enter pressed
-        urlInputCard.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && this.value.trim()) {
-                if (typeof loadImageFromURL === 'function') {
-                    loadImageFromURL(this.value);
-                    loadImageMenu.classList.add('hidden');
-                }
-            }
-        });
+
+    // Trigger graph resize
+    window.dispatchEvent(new Event("resize"));
+  });
+
+  // Mouse up
+  document.addEventListener("mouseup", () => {
+    if (isDragging) {
+      isDragging = false;
+      mainContainer.classList.remove("resizing");
+      splitter.classList.remove("dragging");
     }
-    
-    // Handle sample cards
-    document.querySelectorAll('.sample-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const sampleType = this.dataset.sample;
-            if (sampleType) {
-                // Test patterns use different function than scenes
-                const testPatterns = ['red', 'green', 'blue', 'white', 'black', 'gradient', 'radialGradient', 'colorBars', 'graySteps'];
-                const scenes = ['landscape', 'sunset', 'neon', 'city', 'fire', 'ocean'];
-                
-                if (testPatterns.includes(sampleType)) {
-                    generateTestPattern(sampleType);
-                } else if (scenes.includes(sampleType)) {
-                    generateSampleImage(sampleType);
-                }
-                loadImageMenu.classList.add('hidden');
-            }
-        });
-    });
-    
-    // Close menu when clicking outside
-    document.addEventListener('click', (e) => {
-        if (loadImageMenu && !loadImageMenu.contains(e.target)) {
-            loadImageMenu.classList.add('hidden');
-        }
-    });
-    
-    // File input change
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            handleImageUpload(e.target.files[0]);
-        }
-    });
-    
-    // Drag and drop on image container for better UX
-    const imageContainer = document.getElementById('imageContainer');
-    
-    // Prevent default drag behaviors on document
-    document.addEventListener('dragover', function(e) {
-        e.preventDefault();
-    });
-    
-    document.addEventListener('drop', function(e) {
-        e.preventDefault();
-    });
-    
-    // Handle drop on image container
-    if (imageContainer) {
-        imageContainer.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            imageContainer.classList.add('ring-2', 'ring-brand-blue');
-        });
-        
-        imageContainer.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            imageContainer.classList.remove('ring-2', 'ring-brand-blue');
-        });
-        
-        imageContainer.addEventListener('drop', function(e) {
-            e.preventDefault();
-            imageContainer.classList.remove('ring-2', 'ring-brand-blue');
-            
-            if (e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                if (file.type.startsWith('image/')) {
-                    handleImageUpload(file);
-                }
-            }
-        });
+  });
+
+  // Handle layout button clicks
+  function setLayout(layout) {
+    // Reset pane styles before switching
+    leftPane.style.width = "";
+    leftPane.style.height = "";
+    leftPane.style.maxHeight = "";
+    leftPane.style.flex = "";
+    rightPane.style.width = "";
+    rightPane.style.height = "";
+    rightPane.style.maxHeight = "";
+    rightPane.style.flex = "";
+
+    // Update container classes and button states
+    if (layout === "top") {
+      mainContainer.classList.remove("layout-side");
+      mainContainer.classList.add("layout-top");
+      topLayoutBtn.classList.add("toolbar-btn-active");
+      sideLayoutBtn.classList.remove("toolbar-btn-active");
+      currentLayout = "top";
+    } else {
+      mainContainer.classList.remove("layout-top");
+      mainContainer.classList.add("layout-side");
+      sideLayoutBtn.classList.add("toolbar-btn-active");
+      topLayoutBtn.classList.remove("toolbar-btn-active");
+      currentLayout = "side";
     }
-    
-    // Show/hide toggles
-    showCurves.addEventListener('change', updateGraphs);
-    showHistogram.addEventListener('change', updateGraphs);
-    
-    // HDR toggle
-    hdrToggle.addEventListener('change', function() {
-        hdrMode = this.checked;
-        // Re-generate current synthetic image if one is loaded
-        const imageInfo = document.getElementById('imageInfo').innerHTML;
-        if (imageInfo.includes('Test Pattern:') || imageInfo.includes('Sample:')) {
-            // Extract the type from the image info
-            const match = imageInfo.match(/<strong>(?:Test Pattern|Sample):<\/strong> (\w+)/);
-            if (match) {
-                const type = match[1].replace(' (HDR)', '');
-                if (imageInfo.includes('Test Pattern:')) {
-                    generateTestPattern(type);
-                } else {
-                    generateSampleImage(type);
-                }
-            }
-        }
-    });
-    
-    // Samples dropdown functionality
-    const samplesTrigger = document.getElementById('samplesTrigger');
-    const samplesMenu = document.getElementById('samplesMenu');
-    
-    if (samplesTrigger && samplesMenu) {
-        // Toggle dropdown
-        samplesTrigger.addEventListener('click', function(e) {
-            e.stopPropagation();
-            samplesMenu.classList.toggle('active');
-        });
-        
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function() {
-            samplesMenu.classList.remove('active');
-        });
-        
-        // Handle sample selection
-        document.querySelectorAll('.sample-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const sample = this.dataset.sample;
-                
-                // Update button text
-                samplesTrigger.innerHTML = `<span>▼</span> ${this.textContent.substring(2)}`;
-                
-                // Close menu
-                samplesMenu.classList.remove('active');
-                
-                // Generate sample
-                if (['red', 'green', 'blue', 'white', 'black', 'gradient', 'radialGradient', 'colorBars', 'graySteps'].includes(sample)) {
-                    generateTestPattern(sample);
-                } else if (['landscape', 'sunset', 'neon', 'city', 'fire', 'ocean'].includes(sample)) {
-                    generateSampleImage(sample);
-                }
-            });
-        });
-    }
-    
-    // View toggle buttons
-    separateView.addEventListener('click', () => {
-        viewMode = 'separate';
-        separateView.classList.add('toolbar-btn-active');
-        combinedView.classList.remove('toolbar-btn-active');
-        
-        // Show separate graphs, hide combined
-        document.querySelectorAll('.graph').forEach(g => g.classList.remove('hidden'));
-        document.querySelector('.combined-graph').classList.add('hidden');
-        document.querySelector('.combined-graph').classList.remove('block');
-        // Re-initialize for separate view if needed
-        if (transferMode === 'eotf') {
-            initializeSeparateEOTFGraphs();
-        } else {
-            initializeSeparateOETFGraphs();
-        }
-        // Always update graphs to include histogram
-        if (histogram) {
-            updateGraphs();
-        }
-    });
-    
-    combinedView.addEventListener('click', () => {
-        viewMode = 'combined';
-        combinedView.classList.add('toolbar-btn-active');
-        separateView.classList.remove('toolbar-btn-active');
-        
-        // Hide separate graphs, show combined
-        document.querySelectorAll('.graph').forEach(g => g.classList.add('hidden'));
-        document.querySelector('.combined-graph').classList.remove('hidden');
-        document.querySelector('.combined-graph').classList.add('block');
-        // Re-initialize for combined view
-        if (transferMode === 'eotf') {
-            initializeCombinedEOTFGraph();
-        } else {
-            initializeCombinedGraph();
-        }
-        // Always update combined graph to include histogram
-        if (histogram) {
-            updateCombinedGraph();
-        }
-        setTimeout(() => {
-            const combinedGraphDiv = document.getElementById('combinedGraph');
-            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
-                Plotly.Plots.resize('combinedGraph');
-            }
-        }, 100);
-    });
-    
-    // Transfer mode toggles (OETF vs EOTF)
-    oetfMode.addEventListener('click', function() {
-        console.log('[DEBUG] OETF mode clicked');
-        transferMode = 'oetf';
-        localStorage.setItem('transferMode', 'oetf');
-        oetfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
-        oetfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        eotfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
-        eotfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        // Re-initialize graphs when switching transfer modes
-        initializeGraphs();
-        // Update graphs to include histogram if available
-        if (histogram) {
-            updateGraphs();
-        }
-    });
-    
-    eotfMode.addEventListener('click', function() {
-        console.log('[DEBUG] EOTF mode clicked');
-        transferMode = 'eotf';
-        localStorage.setItem('transferMode', 'eotf');
-        eotfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
-        eotfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        oetfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
-        oetfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
-        // Re-initialize graphs when switching transfer modes
-        initializeGraphs();
-        // Update graphs to include histogram if available
-        if (histogram) {
-            updateGraphs();
-        }
-    });
-    
-    // Peak brightness selector
-    peakBrightnessSelect.addEventListener('change', function() {
-        peakBrightness = parseInt(peakBrightnessSelect.value);
-        updateGraphs();
-    });
-    
-    // Initialize with combined view
-    if (viewMode === 'combined') {
-        combinedView.classList.add('toolbar-btn-active');
-        separateView.classList.remove('toolbar-btn-active');
-        
-        // Hide separate graphs, show combined
-        document.querySelectorAll('.graph').forEach(g => g.classList.add('hidden'));
-        document.querySelector('.combined-graph').classList.remove('hidden');
-        document.querySelector('.combined-graph').classList.add('block');
-        // Ensure combined graph resizes properly on initial load
-        setTimeout(() => {
-            const combinedGraphDiv = document.getElementById('combinedGraph');
-            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
-                Plotly.Plots.resize('combinedGraph');
-            }
-        }, 100);
-    }
-    
-    // Image hover interaction - optimized for performance
-    uploadedImage.addEventListener('mousemove', function(e) {
-        if (!imageData) return;
-        
-        // IMMEDIATE: Update hover indicator position (P0 - instant response)
-        hoverIndicator.style.display = 'block';
-        hoverIndicator.style.left = e.clientX + 'px';
-        hoverIndicator.style.top = e.clientY + 'px';
-        
-        // Get image position and dimensions
-        const rect = this.getBoundingClientRect();
-        const scaleX = this.naturalWidth / rect.width;
-        const scaleY = this.naturalHeight / rect.height;
-        
-        // Calculate pixel coordinates
-        const x = Math.floor((e.clientX - rect.left) * scaleX);
-        const y = Math.floor((e.clientY - rect.top) * scaleY);
-        
-        // Ensure within bounds
-        if (x >= 0 && x < imageData.width && y >= 0 && y < imageData.height) {
-            // Get pixel data
-            const idx = (y * imageData.width + x) * 4;
-            const srgb = {
-                r: imageData.data[idx] / 255,
-                g: imageData.data[idx + 1] / 255,
-                b: imageData.data[idx + 2] / 255
-            };
-            
-            // Convert to linear
-            const linear = {
-                r: TransferFunctions.sRGB.decode(srgb.r),
-                g: TransferFunctions.sRGB.decode(srgb.g),
-                b: TransferFunctions.sRGB.decode(srgb.b)
-            };
-            
-            const pixel = { x, y, srgb, linear };
-            
-            // THROTTLED: Update graphs (P1 - fast but not instant)
-            // Use requestAnimationFrame for smooth updates
-            const now = Date.now();
-            if (now - lastUpdateTime > 16) { // ~60fps throttle
-                lastUpdateTime = now;
-                requestAnimationFrame(() => {
-                    highlightPixelOnGraphs(pixel);
-                });
-            }
-        } else {
-            // Hide indicator if out of bounds
-            hoverIndicator.style.display = 'none';
-        }
-    });
-    
-    uploadedImage.addEventListener('mouseleave', function() {
-        hoverIndicator.style.display = 'none';
-        highlightPixelOnGraphs(null);
-    });
-    
-    // Layout Switcher and Splitter functionality
-    const sideLayoutBtn = document.getElementById('sideLayout');
-    const topLayoutBtn = document.getElementById('topLayout');
-    const mainContainer = document.getElementById('mainContainer');
-    const leftPane = document.getElementById('leftPane');
-    const rightPane = document.getElementById('rightPane');
-    const splitter = document.getElementById('splitter');
-    
-    // Splitter functionality
-    let isDragging = false;
-    let currentLayout = 'side'; // Track current layout
-    
-    // Initialize pane sizes
-    let sideSplitRatio = 0.5; // 50% split for side-by-side
-    let topSplitRatio = 0.5;  // 50% split for top-bottom
-    
-    function updatePaneSizes() {
-        if (currentLayout === 'side') {
-            const containerWidth = mainContainer.clientWidth;
-            const leftWidth = containerWidth * sideSplitRatio - 2; // Account for splitter width
-            const rightWidth = containerWidth * (1 - sideSplitRatio) - 2;
-            
-            leftPane.style.width = `${leftWidth}px`;
-            leftPane.style.flex = 'none';
-            rightPane.style.width = `${rightWidth}px`;
-            rightPane.style.flex = 'none';
-        } else {
-            const containerHeight = mainContainer.clientHeight;
-            const topHeight = containerHeight * topSplitRatio - 2; // Account for splitter height
-            const bottomHeight = containerHeight * (1 - topSplitRatio) - 2;
-            
-            leftPane.style.height = `${topHeight}px`;
-            leftPane.style.maxHeight = `${topHeight}px`;
-            leftPane.style.flex = 'none';
-            rightPane.style.height = `${bottomHeight}px`;
-            rightPane.style.maxHeight = `${bottomHeight}px`;
-            rightPane.style.flex = 'none';
-        }
-    }
-    
-    // Mouse down on splitter
-    splitter.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        mainContainer.classList.add('resizing');
-        splitter.classList.add('dragging');
-        e.preventDefault();
-    });
-    
-    // Mouse move
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        if (currentLayout === 'side') {
-            const containerRect = mainContainer.getBoundingClientRect();
-            const mouseX = e.clientX - containerRect.left;
-            sideSplitRatio = Math.max(0.2, Math.min(0.8, mouseX / containerRect.width));
-            updatePaneSizes();
-        } else {
-            const containerRect = mainContainer.getBoundingClientRect();
-            const mouseY = e.clientY - containerRect.top;
-            topSplitRatio = Math.max(0.2, Math.min(0.8, mouseY / containerRect.height));
-            updatePaneSizes();
-        }
-        
-        // Trigger graph resize
-        window.dispatchEvent(new Event('resize'));
-    });
-    
-    // Mouse up
-    document.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
-            mainContainer.classList.remove('resizing');
-            splitter.classList.remove('dragging');
-        }
-    });
-    
-    // Handle layout button clicks
-    function setLayout(layout) {
-        // Reset pane styles before switching
-        leftPane.style.width = '';
-        leftPane.style.height = '';
-        leftPane.style.maxHeight = '';
-        leftPane.style.flex = '';
-        rightPane.style.width = '';
-        rightPane.style.height = '';
-        rightPane.style.maxHeight = '';
-        rightPane.style.flex = '';
-        
-        // Update container classes and button states
-        if (layout === 'top') {
-            mainContainer.classList.remove('layout-side');
-            mainContainer.classList.add('layout-top');
-            topLayoutBtn.classList.add('toolbar-btn-active');
-            sideLayoutBtn.classList.remove('toolbar-btn-active');
-            currentLayout = 'top';
-        } else {
-            mainContainer.classList.remove('layout-top');
-            mainContainer.classList.add('layout-side');
-            sideLayoutBtn.classList.add('toolbar-btn-active');
-            topLayoutBtn.classList.remove('toolbar-btn-active');
-            currentLayout = 'side';
-        }
-        
-        // Apply saved split ratio for new layout
-        updatePaneSizes();
-        
-        // Trigger resize for graphs after layout change
-        setTimeout(() => {
-            window.dispatchEvent(new Event('resize'));
-        }, 350); // Wait for transition to complete
-    }
-    
-    // Layout button event listeners
-    if (sideLayoutBtn) {
-        sideLayoutBtn.addEventListener('click', () => setLayout('side'));
-    }
-    
-    if (topLayoutBtn) {
-        topLayoutBtn.addEventListener('click', () => setLayout('top'));
-    }
-    
-    // Initialize with default split
+
+    // Apply saved split ratio for new layout
     updatePaneSizes();
-    
-    // Window resize
-    window.addEventListener('resize', () => {
-        // Only resize graphs that are visible
-        if (viewMode === 'combined') {
-            const combinedGraphDiv = document.getElementById('combinedGraph');
-            if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
-                Plotly.Plots.resize('combinedGraph');
-            }
-        } else {
-            ['srgbGraph', 'pqGraph', 'hlgGraph'].forEach(id => {
-                const graphDiv = document.getElementById(id);
-                if (graphDiv && graphDiv.offsetParent !== null) {
-                    Plotly.Plots.resize(id);
-                }
-            });
+
+    // Trigger resize for graphs after layout change
+    setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 350); // Wait for transition to complete
+  }
+
+  // Layout button event listeners
+  if (sideLayoutBtn) {
+    sideLayoutBtn.addEventListener("click", () => setLayout("side"));
+  }
+
+  if (topLayoutBtn) {
+    topLayoutBtn.addEventListener("click", () => setLayout("top"));
+  }
+
+  // Initialize with default split
+  updatePaneSizes();
+
+  // Window resize
+  window.addEventListener("resize", () => {
+    // Only resize graphs that are visible
+    if (viewMode === "combined") {
+      const combinedGraphDiv = document.getElementById("combinedGraph");
+      if (combinedGraphDiv && combinedGraphDiv.offsetParent !== null) {
+        Plotly.Plots.resize("combinedGraph");
+      }
+    } else {
+      ["srgbGraph", "pqGraph", "hlgGraph"].forEach((id) => {
+        const graphDiv = document.getElementById(id);
+        if (graphDiv && graphDiv.offsetParent !== null) {
+          Plotly.Plots.resize(id);
         }
-    });
+      });
+    }
+  });
 });
