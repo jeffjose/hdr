@@ -20,9 +20,9 @@ const TransferFunctions = {
     
     // PQ (Perceptual Quantizer) - ST.2084
     PQ: {
-        // PQ expects normalized input (0-1) but we'll support extended range
-        // Input: relative linear light (0-1 SDR, >1 for HDR)
-        // Output: PQ signal value (0-1 for SDR, can exceed 1 for HDR)
+        // PQ expects absolute luminance normalized to 10,000 nits
+        // Input: relative linear light (0-1 SDR = 0-100 nits, >1 for HDR)
+        // Output: PQ signal value (0.508 for 100 nits, 1.0 for 10,000 nits)
         encode: (linear) => {
             // PQ constants
             const m1 = 0.1593017578125;
@@ -31,8 +31,9 @@ const TransferFunctions = {
             const c2 = 18.8515625;
             const c3 = 18.6875;
             
-            // Don't clamp - allow HDR values
-            const Y = Math.max(0, linear);
+            // Convert from relative (1.0 = 100 nits) to absolute (1.0 = 10,000 nits)
+            // linear * 100 gives us nits, then divide by 10,000 for PQ normalization
+            const Y = Math.max(0, linear * 0.01); // 100/10000 = 0.01
             const Ym1 = Math.pow(Y, m1);
             const num = c1 + c2 * Ym1;
             const den = 1 + c3 * Ym1;
@@ -50,7 +51,9 @@ const TransferFunctions = {
             const num = Math.max(0, Em1 - c1);
             const den = c2 - c3 * Em1;
             if (den === 0) return 0;
-            return Math.pow(num / den, 1/m1);
+            // Returns absolute luminance (0-1 where 1 = 10,000 nits)
+            // Convert back to relative (1.0 = 100 nits) by multiplying by 100
+            return Math.pow(num / den, 1/m1) * 100; // Convert from PQ normalized to relative
         }
     },
     
@@ -451,9 +454,8 @@ function initializeCombinedEOTFGraph() {
         {
             x: signalValues,
             y: signalValues.map(signal => {
-                // PQ EOTF: signal -> normalized -> brightness
-                const normalized = TransferFunctions.PQ.decode(signal);
-                return normalized * 10000; // PQ peak is 10000 nits
+                // PQ EOTF: signal -> brightness in nits (relative to 100)
+                return TransferFunctions.PQ.decode(signal) * 100; // Convert to actual nits
             }),
             type: 'scatter',
             mode: 'lines',
@@ -1080,9 +1082,9 @@ function highlightPixelOnGraphs(pixel) {
                     gY = [pixel.linear.g * 100];
                     bY = [pixel.linear.b * 100];
                 } else if (idx === 1) { // PQ
-                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r) * 10000];
-                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g) * 10000];
-                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b) * 10000];
+                    rY = [TransferFunctions.PQ.decode(pixel.srgb.r) * 100];
+                    gY = [TransferFunctions.PQ.decode(pixel.srgb.g) * 100];
+                    bY = [TransferFunctions.PQ.decode(pixel.srgb.b) * 100];
                 } else { // HLG
                     const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
                     const gScene = TransferFunctions.HLG.decode(pixel.srgb.g);
@@ -1185,9 +1187,9 @@ function updateCombinedGraphHighlight(pixel) {
                     );
                 } else if (type === 'PQ') {
                     updates.y.push(
-                        [TransferFunctions.PQ.decode(pixel.srgb.r) * 10000],
-                        [TransferFunctions.PQ.decode(pixel.srgb.g) * 10000],
-                        [TransferFunctions.PQ.decode(pixel.srgb.b) * 10000]
+                        [TransferFunctions.PQ.decode(pixel.srgb.r) * 100],
+                        [TransferFunctions.PQ.decode(pixel.srgb.g) * 100],
+                        [TransferFunctions.PQ.decode(pixel.srgb.b) * 100]
                     );
                 } else { // HLG
                     const rScene = TransferFunctions.HLG.decode(pixel.srgb.r);
@@ -1333,9 +1335,9 @@ function updateCombinedEOTFGraph() {
                 yG = currentHoverPixel.linear.g * 100;
                 yB = currentHoverPixel.linear.b * 100;
             } else if (type === 'PQ') {
-                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 10000;
-                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 10000;
-                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 10000;
+                yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 100;
+                yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 100;
+                yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 100;
             } else { // HLG
                 const rScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.r);
                 const gScene = TransferFunctions.HLG.decode(currentHoverPixel.srgb.g);
