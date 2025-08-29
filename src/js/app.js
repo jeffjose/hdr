@@ -401,7 +401,7 @@ function initializeCombinedEOTFGraph() {
             bgcolor: 'rgba(0,0,0,0.8)',
             font: {color: 'white'}
         },
-        title: 'EOTF Comparison (Display Response Curves)'
+        title: 'EOTF (Display Response Curves)'
     };
     
     const config = {
@@ -492,7 +492,7 @@ function initializeCombinedGraph() {
             bgcolor: 'rgba(0,0,0,0.8)',
             font: {color: 'white'}
         },
-        title: 'OETF Comparison (Camera Encoding Curves)'
+        title: 'OETF (Camera Encoding Curves)'
     };
     
     const config = {
@@ -1376,7 +1376,7 @@ function updateCombinedEOTFGraph() {
             y: 0.98,
             bgcolor: 'rgba(0,0,0,0.5)'
         },
-        title: 'EOTF Comparison',
+        title: 'EOTF (Display Response Curves)',
         hovermode: 'closest',
         hoverlabel: {
             bgcolor: 'rgba(0,0,0,0.8)',
@@ -1526,7 +1526,7 @@ function updateCombinedOETFGraph() {
             bgcolor: 'rgba(0,0,0,0.8)',
             font: {color: 'white'}
         },
-        title: 'OETF Comparison (Camera Encoding Curves)'
+        title: 'OETF (Camera Encoding Curves)'
     };
     
     Plotly.react('combinedGraph', traces, layout);
