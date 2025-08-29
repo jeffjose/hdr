@@ -5,16 +5,355 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HDR Image Analyzer</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <link rel="stylesheet" href="src/css/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#4a9eff',
+                        'brand-blue-hover': '#3a8eef',
+                        'dark-bg': '#0a0a0a',
+                        'dark-panel': '#1a1a1a',
+                        'dark-surface': '#1f1f1f',
+                        'dark-surface-2': '#252525',
+                        'dark-surface-3': '#2a2a2a',
+                        'dark-border': '#333',
+                        'dark-border-2': '#3a3a3a',
+                        'dark-border-3': '#444',
+                        'dark-text': '#e0e0e0',
+                        'dark-text-muted': '#999',
+                        'dark-text-dim': '#777',
+                        'dark-hover': '#353535',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Plotly graph container override */
+        .graph, .combined-graph {
+            min-height: 0;
+        }
+        
+        /* Checkbox accent color */
+        input[type="checkbox"] {
+            accent-color: #4a9eff;
+        }
+        
+        /* Canvas hidden by default */
+        #canvas {
+            display: none;
+        }
+        
+        /* Hover indicator transitions */
+        .hover-indicator {
+            will-change: transform;
+            transition: none;
+        }
+        
+        /* Sample menu animations */
+        .samples-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+        
+        .samples-menu.active {
+            max-height: 500px;
+            opacity: 1;
+        }
+        
+        /* Layout styles */
+        .layout-side {
+            flex-direction: row;
+        }
+        
+        .layout-top {
+            flex-direction: column;
+        }
+        
+        .layout-side .left-pane {
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .layout-top .left-pane {
+            border-right: none;
+            border-bottom: none;
+            max-height: 50%;
+        }
+        
+        .layout-top .right-pane {
+            max-height: 50%;
+        }
+        
+        /* Smooth transition for layout changes */
+        #mainContainer {
+            transition: flex-direction 0.3s ease;
+        }
+        
+        #leftPane, #rightPane {
+            transition: max-height 0.3s ease, border 0.3s ease;
+        }
+        
+        /* Icon toggle styles */
+        .toggle-icon {
+            position: relative;
+            width: 28px;
+            height: 28px;
+        }
+        
+        input[type="checkbox"]:checked ~ .toggle-icon {
+            background-color: rgba(74, 158, 255, 0.15);
+            border-color: #4a9eff;
+        }
+        
+        input[type="checkbox"]:not(:checked) ~ .toggle-icon svg {
+            opacity: 0.3;
+        }
+        
+        /* Active button state for view modes */
+        .view-btn {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .view-btn-active {
+            background-color: #4a9eff !important;
+            border-color: #4a9eff !important;
+        }
+        
+        .view-btn-active svg {
+            color: white !important;
+        }
+        
+        .view-btn:not(.view-btn-active) svg {
+            color: #999 !important;
+        }
+        
+        /* Standardized button styles - 28x28px everywhere */
+        .toolbar-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: #252525;
+            border: 1px solid #3a3a3a;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .toolbar-btn:hover {
+            background: #353535;
+            border-color: #4a9eff;
+        }
+        
+        .toolbar-btn svg {
+            width: 16px;
+            height: 16px;
+            color: #999;
+        }
+        
+        .toolbar-btn:hover svg {
+            color: #4a9eff;
+        }
+        
+        .toolbar-btn-active {
+            background-color: #4a9eff !important;
+            border-color: #4a9eff !important;
+        }
+        
+        .toolbar-btn-active svg {
+            color: white !important;
+        }
+        
+        /* Splitter styles */
+        .splitter {
+            position: relative;
+            background: #333;
+            flex-shrink: 0;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        
+        .splitter:hover {
+            background: #4a9eff;
+        }
+        
+        .splitter.dragging {
+            background: #4a9eff;
+        }
+        
+        /* Side layout splitter */
+        .layout-side .splitter {
+            width: 4px;
+            cursor: col-resize;
+        }
+        
+        .layout-side .splitter-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        
+        /* Top layout splitter */
+        .layout-top .splitter {
+            height: 4px;
+            width: 100%;
+            cursor: row-resize;
+        }
+        
+        .layout-top .splitter-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+        
+        /* Remove default flex behavior when resizing */
+        .layout-side.resizing .left-pane,
+        .layout-side.resizing .right-pane {
+            flex: none !important;
+        }
+        
+        .layout-top.resizing .left-pane,
+        .layout-top.resizing .right-pane {
+            flex: none !important;
+            max-height: none !important;
+        }
+        
+        /* Prevent text selection during drag */
+        .resizing * {
+            user-select: none !important;
+        }
+        
+        /* Toolbar responsive handling with container queries */
+        .toolbar-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-start;
+            overflow: visible;
+            container-type: inline-size;
+            position: relative;
+            z-index: 100;
+        }
+        
+        /* Prevent toolbar items from shrinking */
+        .toolbar-container > * {
+            flex-shrink: 0;
+        }
+        
+        /* Container query for tight spaces - allow wrapping */
+        @container (max-width: 600px) {
+            .toolbar-container {
+                gap: 6px;
+            }
+            
+            .toolbar-container .w-px {
+                display: none; /* Hide separators when wrapped */
+            }
+        }
+        
+        /* Ensure dropdowns have high z-index and aren't clipped */
+        .samples-menu,
+        .layout-menu,
+        #samplesMenu,
+        #layoutMenu {
+            z-index: 9999 !important;
+            position: absolute !important;
+        }
+        
+        /* Make sure dropdown containers allow overflow */
+        .toolbar-container .relative {
+            position: relative;
+            overflow: visible !important;
+        }
+        
+        /* Ensure the toolbar itself allows overflow for dropdowns */
+        .bg-dark-surface.toolbar-container {
+            overflow: visible !important;
+        }
+        
+        /* Ensure parent panes handle overflow properly */
+        .left-pane,
+        .right-pane {
+            display: flex;
+            flex-direction: column;
+            overflow-x: visible;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Only clip the image container and graphs */
+        #imageContainer {
+            overflow: hidden;
+            min-height: 0;
+            flex: 1;
+        }
+        
+        .graphs-container {
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        /* Additional container queries for very tight spaces */
+        @container (max-width: 400px) {
+            .toolbar-container {
+                gap: 4px;
+            }
+            
+            /* Stack some elements vertically in very tight spaces */
+            .toolbar-container > div {
+                min-width: 0;
+            }
+        }
+        
+        /* URL input in card */
+        #urlInputCard:focus + #loadUrlBtnCard,
+        #urlInputCard:not(:placeholder-shown) + #loadUrlBtnCard {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Sample card hover effects */
+        .sample-card {
+            transition: all 0.2s;
+        }
+        
+        .sample-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* Upload card hover effect */
+        #uploadCard:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="left-panel">
+<body class="bg-dark-panel text-dark-text h-screen overflow-hidden font-sans">
+    <div class="flex h-screen layout-side" id="mainContainer">
+        <div class="flex-1 p-5 flex flex-col left-pane" id="leftPane">
             <!-- Compact Horizontal Input Bar -->
-            <div class="input-bar">
+            <div class="bg-dark-surface rounded-md p-2 mb-3 toolbar-container">
                 <!-- Logo/Branding -->
-                <div class="logo-section">
-                    <div class="logo">
+                <div class="flex items-center gap-2.5 pr-2 flex-shrink-0">
+                    <div class="flex items-center justify-center">
                         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <!-- Gradient definitions -->
                             <defs>
@@ -33,104 +372,204 @@
                             <circle cx="18" cy="8" r="1.5" fill="#9c27b0"/>
                         </svg>
                     </div>
-                    <div class="logo-text">
-                        <div style="font-weight: 600; font-size: 13px; color: #e0e0e0;">HDR Analyzer</div>
-                        <div style="font-size: 9px; color: #666; letter-spacing: 0.5px;">TRANSFER FUNCTIONS</div>
+                    <div class="flex flex-col justify-center">
+                        <div class="font-semibold text-[13px] text-dark-text">HDR Analyzer</div>
+                        <div class="text-[9px] text-dark-text-dim tracking-wider">TRANSFER FUNCTIONS</div>
                     </div>
                 </div>
                 
-                <div class="divider-vertical"></div>
+                <div class="w-px bg-dark-border mx-1"></div>
                 
-                <!-- Samples Dropdown -->
-                <div class="input-group">
-                    <div class="input-label">Samples</div>
-                    <div class="samples-dropdown">
-                        <button class="samples-trigger" id="samplesTrigger">
-                            <span>▼</span> Choose
-                        </button>
-                        <div class="samples-menu" id="samplesMenu">
-                            <div style="padding: 4px 8px; font-size: 10px; color: #777; border-bottom: 1px solid #333;">Test Patterns</div>
-                            <div class="sample-item" data-sample="red">🔴 Pure Red</div>
-                            <div class="sample-item" data-sample="green">🟢 Pure Green</div>
-                            <div class="sample-item" data-sample="blue">🔵 Pure Blue</div>
-                            <div class="sample-item" data-sample="white">⚪ Pure White</div>
-                            <div class="sample-item" data-sample="black">⚫ Pure Black</div>
-                            <div class="sample-item" data-sample="gradient">🌈 Linear Gradient</div>
-                            <div class="sample-item" data-sample="radialGradient">🎯 Radial Gradient</div>
-                            <div class="sample-item" data-sample="colorBars">📊 SMPTE Color Bars</div>
-                            <div class="sample-item" data-sample="graySteps">📶 Gray Steps</div>
-                            <div style="padding: 4px 8px; font-size: 10px; color: #777; border-bottom: 1px solid #333; margin-top: 4px;">Generated Scenes</div>
-                            <div class="sample-item" data-sample="landscape">🏞️ Landscape</div>
-                            <div class="sample-item" data-sample="sunset">🌅 Sunset</div>
-                            <div class="sample-item" data-sample="neon">💫 Neon Lights</div>
-                            <div class="sample-item" data-sample="city">🌃 City Night</div>
-                            <div class="sample-item" data-sample="fire">🔥 Fire Effect</div>
-                            <div class="sample-item" data-sample="ocean">🌊 Ocean Waves</div>
+                <!-- Layout Toggle -->
+                <div class="flex items-center gap-1">
+                    <button id="sideLayout" class="toolbar-btn toolbar-btn-active" title="Side by Side" data-layout="side">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="8" height="18" rx="1"/>
+                            <rect x="13" y="3" width="8" height="18" rx="1"/>
+                        </svg>
+                    </button>
+                    <button id="topLayout" class="toolbar-btn" title="Top/Bottom" data-layout="top">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="8" rx="1"/>
+                            <rect x="3" y="13" width="18" height="8" rx="1"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="w-px bg-dark-border mx-1"></div>
+                
+                <!-- Load Image Dropdown (Card Style) -->
+                <div class="relative">
+                    <button class="toolbar-btn" id="loadImageTrigger" title="Load Image">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </button>
+                    <div class="absolute top-full left-0 mt-2 bg-dark-surface-3 border border-dark-border-2 rounded-lg shadow-2xl hidden z-[10000]" id="loadImageMenu" style="width: 340px; max-width: 90vw;">
+                        <div class="p-3">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-semibold text-dark-text uppercase tracking-wider">Load Image</h3>
+                                <button class="text-dark-text-dim hover:text-dark-text transition-colors" id="closeLoadMenu">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"/>
+                                        <line x1="6" y1="6" x2="18" y2="18"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Input Methods Row -->
+                            <div class="flex gap-2 mb-3">
+                                <!-- Upload Card -->
+                                <div class="flex-1 bg-dark-surface-2 border border-dark-border rounded p-2 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all group" id="uploadCard">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded bg-brand-blue/10 flex items-center justify-center group-hover:bg-brand-blue/20 transition-colors">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand-blue">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                                <polyline points="17 8 12 3 7 8"/>
+                                                <line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="text-[11px] font-medium text-dark-text">Upload</div>
+                                            <div class="text-[9px] text-dark-text-dim">Browse files</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- URL Input -->
+                                <div class="flex-1 bg-dark-surface-2 border border-dark-border rounded p-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded bg-purple-500/10 flex items-center justify-center">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-purple-400">
+                                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                            </svg>
+                                        </div>
+                                        <input type="url" id="urlInputCard" placeholder="Paste URL..." class="flex-1 bg-transparent border-0 text-dark-text text-[11px] focus:outline-none placeholder:text-dark-text-dim">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Samples Section -->
+                            <div class="border-t border-dark-border pt-2">
+                                <div class="text-[10px] uppercase text-dark-text-dim font-medium tracking-wider mb-1.5">Samples</div>
+                                
+                                <!-- Test Patterns Grid -->
+                                <div class="mb-2">
+                                    <div class="text-[9px] text-dark-text-muted mb-1">Test Patterns</div>
+                                    <div class="grid grid-cols-5 gap-1.5">
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="red">
+                                            <div class="text-sm">🔴</div>
+                                            <div class="text-[8px] text-dark-text-muted">Red</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="green">
+                                            <div class="text-sm">🟢</div>
+                                            <div class="text-[8px] text-dark-text-muted">Green</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="blue">
+                                            <div class="text-sm">🔵</div>
+                                            <div class="text-[8px] text-dark-text-muted">Blue</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="white">
+                                            <div class="text-sm">⚪</div>
+                                            <div class="text-[8px] text-dark-text-muted">White</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="black">
+                                            <div class="text-sm">⚫</div>
+                                            <div class="text-[8px] text-dark-text-muted">Black</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="gradient">
+                                            <div class="text-sm">🌈</div>
+                                            <div class="text-[8px] text-dark-text-muted">Gradient</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="radialGradient">
+                                            <div class="text-sm">🎯</div>
+                                            <div class="text-[8px] text-dark-text-muted">Radial</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="colorBars">
+                                            <div class="text-sm">📊</div>
+                                            <div class="text-[8px] text-dark-text-muted">Bars</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="graySteps">
+                                            <div class="text-sm">📶</div>
+                                            <div class="text-[8px] text-dark-text-muted">Steps</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Generated Scenes Grid -->
+                                <div>
+                                    <div class="text-[9px] text-dark-text-muted mb-1">Scenes</div>
+                                    <div class="grid grid-cols-6 gap-1.5">
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="landscape">
+                                            <div class="text-sm">🏞️</div>
+                                            <div class="text-[8px] text-dark-text-muted">Nature</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="sunset">
+                                            <div class="text-sm">🌅</div>
+                                            <div class="text-[8px] text-dark-text-muted">Sunset</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="neon">
+                                            <div class="text-sm">💫</div>
+                                            <div class="text-[8px] text-dark-text-muted">Neon</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="city">
+                                            <div class="text-sm">🌃</div>
+                                            <div class="text-[8px] text-dark-text-muted">City</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="fire">
+                                            <div class="text-sm">🔥</div>
+                                            <div class="text-[8px] text-dark-text-muted">Fire</div>
+                                        </div>
+                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="ocean">
+                                            <div class="text-sm">🌊</div>
+                                            <div class="text-[8px] text-dark-text-muted">Ocean</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Upload Area -->
-                <div class="input-group">
-                    <div class="input-label">Upload</div>
-                    <div class="upload-area" id="uploadArea">
-                        <span>📁 Drop or browse</span>
-                    </div>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                </div>
-                
-                <!-- URL Input -->
-                <div class="input-group" style="flex: 1; position: relative;">
-                    <div class="input-label">URL</div>
-                    <div class="url-input-group">
-                        <input type="url" id="urlInput" placeholder="Paste image URL...">
-                        <button id="loadUrlBtn">Load</button>
-                    </div>
-                    <div id="urlError"></div>
-                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
             </div>
             
             <!-- Image Info -->
-            <div class="info" id="imageInfo">
+            <div class="info p-2 px-2.5 bg-dark-surface-2 rounded-md text-xs leading-relaxed" id="imageInfo">
                 No image loaded
             </div>
             
             <!-- Image Display Area -->
-            <div class="image-container">
-                <img id="uploadedImage" style="display: none;">
+            <div class="flex-1 flex items-center justify-center bg-dark-bg rounded-lg overflow-hidden relative mt-2.5" id="imageContainer">
+                <img id="uploadedImage" style="display: none;" class="max-w-full max-h-full object-contain">
             </div>
         </div>
         
-        <div class="right-panel">
-            <div class="controls">
-                <label>
-                    <input type="checkbox" id="showCurves" checked>
-                    Show Transfer Curves
-                </label>
-                <label>
-                    <input type="checkbox" id="showHistogram" checked>
-                    Show Histogram
-                </label>
-                <div class="controls-right">
-                    <span class="control-label">View</span>
-                    <div class="toggle-group">
-                        <button id="separateView">Separate</button>
-                        <button id="combinedView" class="active">Combined</button>
-                    </div>
-                </div>
-            </div>
-            <div class="controls" style="border-top: 1px solid #333; margin-top: 8px; padding-top: 8px;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="control-label">Mode</span>
-                        <div class="toggle-group">
-                            <button id="oetfMode">OETF</button>
-                            <button id="eotfMode" class="active">EOTF</button>
+        <!-- Draggable Separator -->
+        <div class="splitter" id="splitter">
+            <div class="splitter-handle"></div>
+        </div>
+        
+        <div class="flex-1 p-5 flex flex-col right-pane" id="rightPane">
+            <!-- Unified Control Panel -->
+            <div class="controls p-2.5 bg-dark-surface-2 rounded-lg mb-2.5 toolbar-container">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- PRIMARY: Transfer Function Mode -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-dark-text-dim uppercase tracking-wider font-medium">Mode</span>
+                        <div class="flex bg-dark-panel border border-dark-border rounded-md overflow-hidden">
+                            <button id="oetfMode" class="px-3.5 py-1.5 bg-transparent border-r border-dark-border text-xs text-dark-text-muted cursor-pointer transition-all font-medium hover:bg-brand-blue/10 hover:text-gray-300">OETF</button>
+                            <button id="eotfMode" class="px-3.5 py-1.5 bg-brand-blue text-white text-xs cursor-pointer transition-all font-semibold">EOTF</button>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;" id="peakBrightnessControl">
-                        <span class="control-label">Peak</span>
-                        <select id="peakBrightness" style="background: #1a1a1a; color: #e0e0e0; border: 1px solid #333; padding: 4px 8px; border-radius: 4px;">
+                    
+                    <!-- Peak Brightness Control (related to mode) -->
+                    <div class="flex items-center gap-2" id="peakBrightnessControl">
+                        <span class="text-[11px] text-dark-text-dim uppercase tracking-wider font-medium">Peak</span>
+                        <select id="peakBrightness" class="bg-dark-panel text-dark-text border border-dark-border px-2 py-1 rounded text-xs focus:outline-none focus:border-brand-blue">
                             <option value="100">100 nits (SDR)</option>
                             <option value="200">200 nits</option>
                             <option value="400">400 nits</option>
@@ -141,19 +580,69 @@
                             <option value="10000">10000 nits</option>
                         </select>
                     </div>
+                    
+                    <div class="w-px h-5 bg-dark-border"></div>
+                    
+                    <!-- SECONDARY: Graph Layout -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] text-dark-text-dim uppercase tracking-wider font-medium">View</span>
+                        <div class="flex items-center gap-1">
+                            <button id="separateView" class="toolbar-btn" title="Separate View">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="8" height="8" rx="1"/>
+                                    <rect x="13" y="3" width="8" height="8" rx="1"/>
+                                    <rect x="3" y="13" width="8" height="8" rx="1"/>
+                                    <rect x="13" y="13" width="8" height="8" rx="1"/>
+                                </svg>
+                            </button>
+                            <button id="combinedView" class="toolbar-btn toolbar-btn-active" title="Combined View">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="1"/>
+                                    <path d="M3 12 L21 12" stroke-dasharray="2 2" opacity="0.5"/>
+                                    <path d="M12 3 L12 21" stroke-dasharray="2 2" opacity="0.5"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Display Toggles -->
+                    <div class="flex items-center gap-1">
+                        <!-- Transfer Curves Toggle -->
+                        <label class="relative flex items-center cursor-pointer group" title="Transfer Curves">
+                            <input type="checkbox" id="showCurves" checked class="sr-only">
+                            <div class="toggle-icon rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all hover:bg-dark-hover hover:border-brand-blue">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand-blue">
+                                    <path d="M3 20 Q 8 16, 12 10 T 21 3" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                        </label>
+                        
+                        <!-- Histogram Toggle -->
+                        <label class="relative flex items-center cursor-pointer group" title="Histogram">
+                            <input type="checkbox" id="showHistogram" checked class="sr-only">
+                            <div class="toggle-icon rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all hover:bg-dark-hover hover:border-brand-blue">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" class="text-brand-blue">
+                                    <rect x="4" y="14" width="3" height="7" fill="currentColor"/>
+                                    <rect x="9" y="9" width="3" height="12" fill="currentColor"/>
+                                    <rect x="14" y="4" width="3" height="17" fill="currentColor"/>
+                                    <rect x="19" y="11" width="3" height="10" fill="currentColor"/>
+                                </svg>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
-            <div class="graphs-container combined-view" id="graphsContainer">
-                <div class="graph" id="srgbGraph"></div>
-                <div class="graph" id="pqGraph"></div>
-                <div class="graph" id="hlgGraph"></div>
-                <div class="combined-graph active" id="combinedGraph"></div>
+            <div class="graphs-container flex-1 flex flex-col gap-2.5 combined-view" id="graphsContainer">
+                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="srgbGraph"></div>
+                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="pqGraph"></div>
+                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="hlgGraph"></div>
+                <div class="combined-graph flex-1 bg-dark-bg rounded-lg block" id="combinedGraph"></div>
             </div>
         </div>
     </div>
     
     <canvas id="canvas"></canvas>
-    <div class="hover-indicator" id="hoverIndicator"></div>
+    <div class="hover-indicator fixed w-5 h-5 border-2 border-brand-blue rounded-full pointer-events-none hidden -translate-x-1/2 -translate-y-1/2 z-[1000] shadow-[0_0_10px_rgba(74,158,255,0.5)]" id="hoverIndicator"></div>
     <script src="src/js/histogram-enhancement.js"></script>
     <script src="src/js/sample-generators.js"></script>
     <script src="src/js/script.js"></script>

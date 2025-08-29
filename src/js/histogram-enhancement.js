@@ -166,35 +166,32 @@ function createHistogramTrace(histogram, scaleFactor = 0.3, baseColor = [255, 25
 
 // Function to add histogram controls to the UI
 function addHistogramControls() {
-    const controlsDiv = document.querySelector('.controls');
-    if (!controlsDiv) return;
-    
     // Check if controls already exist
     if (document.getElementById('histogramVizSelect')) return;
     
-    // Create visualization type selector
-    const vizContainer = document.createElement('div');
-    vizContainer.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    // Find the histogram toggle checkbox
+    const histogramCheckbox = document.getElementById('showHistogram');
+    if (!histogramCheckbox) return;
     
-    const vizLabel = document.createElement('label');
-    vizLabel.textContent = 'Histogram';
-    vizLabel.style.cssText = 'font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px;';
+    // Find the histogram toggle's parent container
+    const histogramToggle = histogramCheckbox.closest('label');
+    if (!histogramToggle) return;
     
+    // Create container for histogram style controls
+    const histogramControlsContainer = document.createElement('div');
+    histogramControlsContainer.id = 'histogramControls';
+    histogramControlsContainer.style.cssText = 'display: flex; align-items: center; gap: 4px; margin-left: 4px;';
+    histogramControlsContainer.className = 'histogram-controls';
+    
+    // Create visualization type selector (compact dropdown)
     const vizSelect = document.createElement('select');
     vizSelect.id = 'histogramVizSelect';
-    vizSelect.style.cssText = `
-        background: #333;
-        border: 1px solid #444;
-        color: #e0e0e0;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 13px;
-        cursor: pointer;
-    `;
+    vizSelect.className = 'bg-dark-panel text-dark-text border border-dark-border px-1.5 py-0.5 rounded text-[10px] focus:outline-none focus:border-brand-blue';
+    vizSelect.style.cssText = 'height: 24px; min-width: 60px;';
     
     const vizOptions = [
         { value: 'area', text: 'Area' },
-        { value: 'curve', text: 'Smooth Curve' },
+        { value: 'curve', text: 'Curve' },
         { value: 'line', text: 'Line' },
         { value: 'bars', text: 'Bars' },
         { value: 'step', text: 'Steps' }
@@ -210,23 +207,16 @@ function addHistogramControls() {
         vizSelect.appendChild(option);
     });
     
-    // Create scale selector
+    // Create scale selector (compact dropdown)
     const scaleSelect = document.createElement('select');
     scaleSelect.id = 'histogramScaleSelect';
-    scaleSelect.style.cssText = `
-        background: #333;
-        border: 1px solid #444;
-        color: #e0e0e0;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 13px;
-        cursor: pointer;
-    `;
+    scaleSelect.className = 'bg-dark-panel text-dark-text border border-dark-border px-1.5 py-0.5 rounded text-[10px] focus:outline-none focus:border-brand-blue';
+    scaleSelect.style.cssText = 'height: 24px; min-width: 45px;';
     
     const scaleOptions = [
-        { value: 'linear', text: 'Linear' },
-        { value: 'log', text: 'Logarithmic' },
-        { value: 'sqrt', text: 'Square Root' }
+        { value: 'linear', text: 'Lin' },
+        { value: 'log', text: 'Log' },
+        { value: 'sqrt', text: 'Sqrt' }
     ];
     
     scaleOptions.forEach(opt => {
@@ -255,17 +245,28 @@ function addHistogramControls() {
     });
     
     // Assemble the controls
-    vizContainer.appendChild(vizLabel);
-    vizContainer.appendChild(vizSelect);
-    vizContainer.appendChild(scaleSelect);
+    histogramControlsContainer.appendChild(vizSelect);
+    histogramControlsContainer.appendChild(scaleSelect);
     
-    // Insert before the view toggle buttons
-    const viewToggle = controlsDiv.querySelector('.view-toggle');
-    if (viewToggle) {
-        controlsDiv.insertBefore(vizContainer, viewToggle);
-    } else {
-        controlsDiv.appendChild(vizContainer);
+    // Insert after the histogram toggle
+    if (histogramToggle.parentNode) {
+        histogramToggle.parentNode.insertBefore(histogramControlsContainer, histogramToggle.nextSibling);
     }
+    
+    // Function to toggle visibility based on checkbox state
+    function updateHistogramControlsVisibility() {
+        if (histogramCheckbox.checked) {
+            histogramControlsContainer.style.display = 'flex';
+        } else {
+            histogramControlsContainer.style.display = 'none';
+        }
+    }
+    
+    // Set initial visibility
+    updateHistogramControlsVisibility();
+    
+    // Listen for checkbox changes
+    histogramCheckbox.addEventListener('change', updateHistogramControlsVisibility);
 }
 
 // Export functions for use in main script

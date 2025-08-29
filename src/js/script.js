@@ -1981,9 +1981,76 @@ document.addEventListener('DOMContentLoaded', function() {
     const eotfMode = document.getElementById('eotfMode');
     const peakBrightnessSelect = document.getElementById('peakBrightness');
     
-    // File upload click
-    uploadArea.addEventListener('click', function(e) {
-        fileInput.click();
+    // Load Image dropdown functionality
+    const loadImageTrigger = document.getElementById('loadImageTrigger');
+    const loadImageMenu = document.getElementById('loadImageMenu');
+    const uploadCard = document.getElementById('uploadCard');
+    const closeLoadMenu = document.getElementById('closeLoadMenu');
+    const urlInputCard = document.getElementById('urlInputCard');
+    const loadUrlBtnCard = document.getElementById('loadUrlBtnCard');
+    
+    // Toggle load image menu
+    if (loadImageTrigger) {
+        loadImageTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            loadImageMenu.classList.toggle('hidden');
+        });
+    }
+    
+    // Close button
+    if (closeLoadMenu) {
+        closeLoadMenu.addEventListener('click', () => {
+            loadImageMenu.classList.add('hidden');
+        });
+    }
+    
+    // Handle upload card click
+    if (uploadCard) {
+        uploadCard.addEventListener('click', function(e) {
+            e.stopPropagation();
+            fileInput.click();
+            loadImageMenu.classList.add('hidden');
+        });
+    }
+    
+    // Handle URL input in card
+    if (urlInputCard) {
+        // Load URL when Enter pressed
+        urlInputCard.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && this.value.trim()) {
+                if (typeof loadImageFromURL === 'function') {
+                    loadImageFromURL(this.value);
+                    loadImageMenu.classList.add('hidden');
+                }
+            }
+        });
+    }
+    
+    // Handle sample cards
+    document.querySelectorAll('.sample-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const sampleType = this.dataset.sample;
+            if (sampleType) {
+                // Test patterns use different function than scenes
+                const testPatterns = ['red', 'green', 'blue', 'white', 'black', 'gradient', 'radialGradient', 'colorBars', 'graySteps'];
+                const scenes = ['landscape', 'sunset', 'neon', 'city', 'fire', 'ocean'];
+                
+                if (testPatterns.includes(sampleType)) {
+                    generateTestPattern(sampleType);
+                } else if (scenes.includes(sampleType)) {
+                    generateSampleImage(sampleType);
+                }
+                loadImageMenu.classList.add('hidden');
+            }
+        });
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (loadImageMenu && !loadImageMenu.contains(e.target)) {
+            loadImageMenu.classList.add('hidden');
+        }
     });
     
     // File input change
@@ -1993,25 +2060,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Drag and drop
-    uploadArea.addEventListener('dragover', function(e) {
+    // Drag and drop on image container for better UX
+    const imageContainer = document.getElementById('imageContainer');
+    
+    // Prevent default drag behaviors on document
+    document.addEventListener('dragover', function(e) {
         e.preventDefault();
-        uploadArea.classList.add('dragover');
     });
     
-    uploadArea.addEventListener('dragleave', function(e) {
+    document.addEventListener('drop', function(e) {
         e.preventDefault();
-        uploadArea.classList.remove('dragover');
     });
     
-    uploadArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
+    // Handle drop on image container
+    if (imageContainer) {
+        imageContainer.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            imageContainer.classList.add('ring-2', 'ring-brand-blue');
+        });
         
-        if (e.dataTransfer.files.length > 0) {
-            handleImageUpload(e.dataTransfer.files[0]);
-        }
-    });
+        imageContainer.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            imageContainer.classList.remove('ring-2', 'ring-brand-blue');
+        });
+        
+        imageContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            imageContainer.classList.remove('ring-2', 'ring-brand-blue');
+            
+            if (e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith('image/')) {
+                    handleImageUpload(file);
+                }
+            }
+        });
+    }
     
     // Show/hide toggles
     showCurves.addEventListener('change', updateGraphs);
@@ -2058,10 +2142,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // View toggle buttons
     separateView.addEventListener('click', () => {
         viewMode = 'separate';
-        separateView.classList.add('active');
-        combinedView.classList.remove('active');
-        graphsContainer.classList.remove('combined-view');
-        combinedGraph.classList.remove('active');
+        separateView.classList.add('toolbar-btn-active');
+        combinedView.classList.remove('toolbar-btn-active');
+        
+        // Show separate graphs, hide combined
+        document.querySelectorAll('.graph').forEach(g => g.classList.remove('hidden'));
+        document.querySelector('.combined-graph').classList.add('hidden');
+        document.querySelector('.combined-graph').classList.remove('block');
         // Re-initialize for separate view if needed
         if (transferMode === 'eotf') {
             initializeSeparateEOTFGraphs();
@@ -2076,10 +2163,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     combinedView.addEventListener('click', () => {
         viewMode = 'combined';
-        combinedView.classList.add('active');
-        separateView.classList.remove('active');
-        graphsContainer.classList.add('combined-view');
-        combinedGraph.classList.add('active');
+        combinedView.classList.add('toolbar-btn-active');
+        separateView.classList.remove('toolbar-btn-active');
+        
+        // Hide separate graphs, show combined
+        document.querySelectorAll('.graph').forEach(g => g.classList.add('hidden'));
+        document.querySelector('.combined-graph').classList.remove('hidden');
+        document.querySelector('.combined-graph').classList.add('block');
         // Re-initialize for combined view
         if (transferMode === 'eotf') {
             initializeCombinedEOTFGraph();
@@ -2102,8 +2192,10 @@ document.addEventListener('DOMContentLoaded', function() {
     oetfMode.addEventListener('click', function() {
         console.log('[DEBUG] OETF mode clicked');
         transferMode = 'oetf';
-        oetfMode.classList.add('active');
-        eotfMode.classList.remove('active');
+        oetfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
+        oetfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
+        eotfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
+        eotfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
         // Re-initialize graphs when switching transfer modes
         initializeGraphs();
         // Update graphs to include histogram if available
@@ -2115,8 +2207,10 @@ document.addEventListener('DOMContentLoaded', function() {
     eotfMode.addEventListener('click', function() {
         console.log('[DEBUG] EOTF mode clicked');
         transferMode = 'eotf';
-        eotfMode.classList.add('active');
-        oetfMode.classList.remove('active');
+        eotfMode.classList.add('bg-brand-blue', 'text-white', 'font-semibold');
+        eotfMode.classList.remove('bg-transparent', 'text-dark-text-muted', 'font-medium');
+        oetfMode.classList.remove('bg-brand-blue', 'text-white', 'font-semibold');
+        oetfMode.classList.add('bg-transparent', 'text-dark-text-muted', 'font-medium');
         // Re-initialize graphs when switching transfer modes
         initializeGraphs();
         // Update graphs to include histogram if available
@@ -2133,10 +2227,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize with combined view
     if (viewMode === 'combined') {
-        combinedView.classList.add('active');
-        separateView.classList.remove('active');
-        graphsContainer.classList.add('combined-view');
-        combinedGraph.classList.add('active');
+        combinedView.classList.add('toolbar-btn-active');
+        separateView.classList.remove('toolbar-btn-active');
+        
+        // Hide separate graphs, show combined
+        document.querySelectorAll('.graph').forEach(g => g.classList.add('hidden'));
+        document.querySelector('.combined-graph').classList.remove('hidden');
+        document.querySelector('.combined-graph').classList.add('block');
         // Ensure combined graph resizes properly on initial load
         setTimeout(() => {
             const combinedGraphDiv = document.getElementById('combinedGraph');
@@ -2202,6 +2299,131 @@ document.addEventListener('DOMContentLoaded', function() {
         hoverIndicator.style.display = 'none';
         highlightPixelOnGraphs(null);
     });
+    
+    // Layout Switcher and Splitter functionality
+    const sideLayoutBtn = document.getElementById('sideLayout');
+    const topLayoutBtn = document.getElementById('topLayout');
+    const mainContainer = document.getElementById('mainContainer');
+    const leftPane = document.getElementById('leftPane');
+    const rightPane = document.getElementById('rightPane');
+    const splitter = document.getElementById('splitter');
+    
+    // Splitter functionality
+    let isDragging = false;
+    let currentLayout = 'side'; // Track current layout
+    
+    // Initialize pane sizes
+    let sideSplitRatio = 0.5; // 50% split for side-by-side
+    let topSplitRatio = 0.5;  // 50% split for top-bottom
+    
+    function updatePaneSizes() {
+        if (currentLayout === 'side') {
+            const containerWidth = mainContainer.clientWidth;
+            const leftWidth = containerWidth * sideSplitRatio - 2; // Account for splitter width
+            const rightWidth = containerWidth * (1 - sideSplitRatio) - 2;
+            
+            leftPane.style.width = `${leftWidth}px`;
+            leftPane.style.flex = 'none';
+            rightPane.style.width = `${rightWidth}px`;
+            rightPane.style.flex = 'none';
+        } else {
+            const containerHeight = mainContainer.clientHeight;
+            const topHeight = containerHeight * topSplitRatio - 2; // Account for splitter height
+            const bottomHeight = containerHeight * (1 - topSplitRatio) - 2;
+            
+            leftPane.style.height = `${topHeight}px`;
+            leftPane.style.maxHeight = `${topHeight}px`;
+            leftPane.style.flex = 'none';
+            rightPane.style.height = `${bottomHeight}px`;
+            rightPane.style.maxHeight = `${bottomHeight}px`;
+            rightPane.style.flex = 'none';
+        }
+    }
+    
+    // Mouse down on splitter
+    splitter.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        mainContainer.classList.add('resizing');
+        splitter.classList.add('dragging');
+        e.preventDefault();
+    });
+    
+    // Mouse move
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        if (currentLayout === 'side') {
+            const containerRect = mainContainer.getBoundingClientRect();
+            const mouseX = e.clientX - containerRect.left;
+            sideSplitRatio = Math.max(0.2, Math.min(0.8, mouseX / containerRect.width));
+            updatePaneSizes();
+        } else {
+            const containerRect = mainContainer.getBoundingClientRect();
+            const mouseY = e.clientY - containerRect.top;
+            topSplitRatio = Math.max(0.2, Math.min(0.8, mouseY / containerRect.height));
+            updatePaneSizes();
+        }
+        
+        // Trigger graph resize
+        window.dispatchEvent(new Event('resize'));
+    });
+    
+    // Mouse up
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            mainContainer.classList.remove('resizing');
+            splitter.classList.remove('dragging');
+        }
+    });
+    
+    // Handle layout button clicks
+    function setLayout(layout) {
+        // Reset pane styles before switching
+        leftPane.style.width = '';
+        leftPane.style.height = '';
+        leftPane.style.maxHeight = '';
+        leftPane.style.flex = '';
+        rightPane.style.width = '';
+        rightPane.style.height = '';
+        rightPane.style.maxHeight = '';
+        rightPane.style.flex = '';
+        
+        // Update container classes and button states
+        if (layout === 'top') {
+            mainContainer.classList.remove('layout-side');
+            mainContainer.classList.add('layout-top');
+            topLayoutBtn.classList.add('toolbar-btn-active');
+            sideLayoutBtn.classList.remove('toolbar-btn-active');
+            currentLayout = 'top';
+        } else {
+            mainContainer.classList.remove('layout-top');
+            mainContainer.classList.add('layout-side');
+            sideLayoutBtn.classList.add('toolbar-btn-active');
+            topLayoutBtn.classList.remove('toolbar-btn-active');
+            currentLayout = 'side';
+        }
+        
+        // Apply saved split ratio for new layout
+        updatePaneSizes();
+        
+        // Trigger resize for graphs after layout change
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 350); // Wait for transition to complete
+    }
+    
+    // Layout button event listeners
+    if (sideLayoutBtn) {
+        sideLayoutBtn.addEventListener('click', () => setLayout('side'));
+    }
+    
+    if (topLayoutBtn) {
+        topLayoutBtn.addEventListener('click', () => setLayout('top'));
+    }
+    
+    // Initialize with default split
+    updatePaneSizes();
     
     // Window resize
     window.addEventListener('resize', () => {

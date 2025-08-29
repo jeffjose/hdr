@@ -23,7 +23,7 @@ function loadImageFromURL(url) {
     
     // Show loading state
     if (loadBtn) {
-        loadBtn.textContent = 'Loading...';
+        loadBtn.textContent = '...';
         loadBtn.disabled = true;
     }
     
@@ -80,7 +80,7 @@ function loadImageFromURL(url) {
             
             // Reset button
             if (loadBtn) {
-                loadBtn.textContent = 'Load URL';
+                loadBtn.textContent = 'Load';
                 loadBtn.disabled = false;
             }
         } catch (e) {
@@ -90,7 +90,7 @@ function loadImageFromURL(url) {
                 urlError.style.display = 'block';
             }
             if (loadBtn) {
-                loadBtn.textContent = 'Load URL';
+                loadBtn.textContent = 'Load';
                 loadBtn.disabled = false;
             }
             
@@ -110,7 +110,7 @@ function loadImageFromURL(url) {
                 urlError.style.display = 'block';
             }
             if (loadBtn) {
-                loadBtn.textContent = 'Load URL';
+                loadBtn.textContent = 'Load';
                 loadBtn.disabled = false;
             }
         };
@@ -127,7 +127,7 @@ function loadImageFromURL(url) {
                 <strong>Solution:</strong> Download and upload locally
             `;
             if (loadBtn) {
-                loadBtn.textContent = 'Load URL';
+                loadBtn.textContent = 'Load';
                 loadBtn.disabled = false;
             }
         };
@@ -143,6 +143,7 @@ function loadImageFromURL(url) {
 document.addEventListener('DOMContentLoaded', function() {
     const urlInput = document.getElementById('urlInput');
     const loadUrlBtn = document.getElementById('loadUrlBtn');
+    const urlInputContainer = urlInput ? urlInput.closest('.url-input-container') : null;
     
     if (loadUrlBtn) {
         loadUrlBtn.addEventListener('click', function() {
@@ -159,5 +160,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadImageFromURL(urlInput.value);
             }
         });
+        
+        // Add/remove has-value class based on input content
+        urlInput.addEventListener('input', function() {
+            if (urlInputContainer) {
+                if (this.value.trim()) {
+                    urlInputContainer.classList.add('has-value');
+                } else {
+                    urlInputContainer.classList.remove('has-value');
+                }
+            }
+        });
+        
+        // Check initial value
+        if (urlInput.value.trim() && urlInputContainer) {
+            urlInputContainer.classList.add('has-value');
+        }
     }
 });
