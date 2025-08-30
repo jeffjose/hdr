@@ -43,13 +43,15 @@ export const HLG = {
     
     /**
      * Complete EOTF: HLG signal to display light in nits
+     * Maps signal 1.0 to peak brightness
      */
     signalToNits: (hlg, peakBrightness = 1000) => {
         const { systemGamma } = HLG.constants;
         const sceneLight = HLG.decode(hlg);
         
-        // HLG's OOTF (display gamma) is applied to the scene light
-        const displayLight = Math.pow(sceneLight, systemGamma) * (peakBrightness / 100);
+        // Apply system gamma and scale to peak brightness
+        // Signal 1.0 -> scene light 1.0 -> display peak brightness
+        const displayLight = Math.pow(sceneLight, systemGamma) * peakBrightness;
         
         return displayLight;
     },
@@ -61,7 +63,7 @@ export const HLG = {
         const { systemGamma } = HLG.constants;
         
         // Remove display scaling and system gamma to get scene light
-        const normalizedDisplay = nits / (peakBrightness / 100);
+        const normalizedDisplay = nits / peakBrightness;
         const sceneLight = Math.pow(normalizedDisplay, 1 / systemGamma);
         
         // Apply OETF to get signal
