@@ -1,0 +1,1 @@
+- dont run pnpm dev or pnpm build. The user has the server running on 5173

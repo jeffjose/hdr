@@ -50,10 +50,10 @@
   let urlInput: HTMLInputElement;
 
   // Graph containers
-  let srgbGraph: HTMLDivElement;
-  let pqGraph: HTMLDivElement;
-  let hlgGraph: HTMLDivElement;
-  let combinedGraph: HTMLDivElement;
+  let srgbGraph: HTMLDivElement & any;
+  let pqGraph: HTMLDivElement & any;
+  let hlgGraph: HTMLDivElement & any;
+  let combinedGraph: HTMLDivElement & any;
 
   // Drag state
   let isDragging = $state(false);
@@ -97,8 +97,11 @@
         console.log('[HDR] Setting up event listeners...');
         setupEventListeners();
         
-        console.log('[HDR] Loading initial sample image...');
-        loadSampleImage('gradient');
+        // Delay initial sample load to ensure graphs are fully ready
+        setTimeout(() => {
+          console.log('[HDR] Loading initial sample image...');
+          loadSampleImage('gradient');
+        }, 200);
         
         console.log('[HDR] onMount completed successfully');
       } catch (error) {
@@ -273,10 +276,10 @@
   function initializeCombinedEOTFGraph() {
     console.log('[HDR] initializeCombinedEOTFGraph called');
     
-    if (!combinedGraph) {
-      console.warn('[HDR] combinedGraph element not found, waiting...');
+    if (!combinedGraph || !Plotly) {
+      console.warn('[HDR] combinedGraph element or Plotly not ready, waiting...');
       setTimeout(() => {
-        if (combinedGraph) {
+        if (combinedGraph && Plotly) {
           console.log('[HDR] Retrying graph initialization...');
           initializeCombinedEOTFGraph();
         }
@@ -748,7 +751,11 @@
     uploadedImage.style.display = 'block';
     
     updateImageInfo(source);
-    updateGraphsWithHistogram();
+    
+    // Delay histogram update to ensure graphs are ready
+    setTimeout(() => {
+      updateGraphsWithHistogram();
+    }, 100);
   }
 
   function updateImageInfo(source?: string) {
@@ -848,20 +855,34 @@
     
     // Clear hover markers from graphs
     if (Plotly) {
-      if (viewMode === 'combined' && combinedGraph?._fullData) {
-        const baseTraces = combinedGraph._fullData.filter((trace: any) => 
-          !['R', 'G', 'B'].includes(trace.name)
-        );
-        Plotly.react(combinedGraph, baseTraces, combinedGraph._fullLayout);
-      } else {
-        [srgbGraph, pqGraph, hlgGraph].forEach(graph => {
-          if (graph?._fullData) {
-            const baseTraces = graph._fullData.filter((trace: any) => 
-              !['R', 'G', 'B'].includes(trace.name)
-            );
-            Plotly.react(graph, baseTraces, graph._fullLayout);
+      try {
+        if (viewMode === 'combined' && combinedGraph?.data) {
+          const markerIndices: number[] = [];
+          combinedGraph.data.forEach((trace: any, index: number) => {
+            if (['R', 'G', 'B'].includes(trace.name)) {
+              markerIndices.push(index);
+            }
+          });
+          if (markerIndices.length > 0) {
+            Plotly.deleteTraces(combinedGraph, markerIndices);
           }
-        });
+        } else {
+          [srgbGraph, pqGraph, hlgGraph].forEach(graph => {
+            if (graph?.data) {
+              const markerIndices: number[] = [];
+              graph.data.forEach((trace: any, index: number) => {
+                if (['R', 'G', 'B'].includes(trace.name)) {
+                  markerIndices.push(index);
+                }
+              });
+              if (markerIndices.length > 0) {
+                Plotly.deleteTraces(graph, markerIndices);
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[HDR] Error clearing hover markers:', error);
       }
     }
   }
@@ -935,10 +956,17 @@
   function updateGraphsWithHistogram() {
     if (!histogram || !showHistogram || !Plotly) return;
     
+    // Ensure graphs are initialized
+    if (viewMode === 'combined' && !combinedGraph?.data) return;
+    if (viewMode === 'separate' && (!srgbGraph?.data || !pqGraph?.data || !hlgGraph?.data)) return;
+    
     // Create histogram trace
+    const maxValue = Math.max(...histogram.luminance);
+    if (maxValue === 0) return; // Avoid division by zero
+    
     const histogramTrace = {
       x: Array.from({ length: histogram.bins }, (_, i) => i / histogram.bins),
-      y: histogram.luminance.map(v => v / Math.max(...histogram.luminance) * 0.3), // Scale to 30% of graph height
+      y: histogram.luminance.map(v => v / maxValue * 0.3), // Scale to 30% of graph height
       type: 'scatter',
       mode: 'lines',
       fill: 'tozeroy',
@@ -952,35 +980,21 @@
       hoverinfo: 'skip'
     };
     
-    // Update graphs based on view mode
-    if (viewMode === 'combined') {
-      const currentData = combinedGraph._fullData || [];
-      const transferFunctionTraces = currentData.filter((trace: any) => trace.name !== 'Histogram');
-      
-      Plotly.react(combinedGraph, [...transferFunctionTraces, histogramTrace], {
-        ...combinedGraph._fullLayout,
-        yaxis2: {
-          overlaying: 'y',
-          side: 'right',
-          range: [0, 1],
-          showgrid: false,
-          zeroline: false,
-          showticklabels: false,
-          showline: false
+    try {
+      // Update graphs based on view mode
+      if (viewMode === 'combined' && combinedGraph) {
+        // Remove existing histogram if present
+        const histogramIndex = combinedGraph.data?.findIndex((trace: any) => trace.name === 'Histogram');
+        if (histogramIndex !== undefined && histogramIndex >= 0) {
+          Plotly.deleteTraces(combinedGraph, histogramIndex);
         }
-      });
-    } else {
-      // Update separate graphs
-      const graphs = [srgbGraph, pqGraph, hlgGraph];
-      graphs.forEach(graph => {
-        if (!graph || !graph._fullData) return;
         
-        const currentData = graph._fullData;
-        const transferFunctionTraces = currentData.filter((trace: any) => trace.name !== 'Histogram');
+        // Add new histogram trace
+        Plotly.addTraces(combinedGraph, histogramTrace);
         
-        Plotly.react(graph, [...transferFunctionTraces, histogramTrace], {
-          ...graph._fullLayout,
-          yaxis2: {
+        // Update layout for y2 axis
+        Plotly.relayout(combinedGraph, {
+          'yaxis2': {
             overlaying: 'y',
             side: 'right',
             range: [0, 1],
@@ -990,7 +1004,36 @@
             showline: false
           }
         });
-      });
+      } else if (viewMode === 'separate') {
+        // Update separate graphs
+        [srgbGraph, pqGraph, hlgGraph].forEach(graph => {
+          if (!graph?.data) return;
+          
+          // Remove existing histogram if present
+          const histogramIndex = graph.data?.findIndex((trace: any) => trace.name === 'Histogram');
+          if (histogramIndex !== undefined && histogramIndex >= 0) {
+            Plotly.deleteTraces(graph, histogramIndex);
+          }
+          
+          // Add new histogram trace
+          Plotly.addTraces(graph, histogramTrace);
+          
+          // Update layout for y2 axis
+          Plotly.relayout(graph, {
+            'yaxis2': {
+              overlaying: 'y',
+              side: 'right',
+              range: [0, 1],
+              showgrid: false,
+              zeroline: false,
+              showticklabels: false,
+              showline: false
+            }
+          });
+        });
+      }
+    } catch (error) {
+      console.error('[HDR] Error updating histogram:', error);
     }
   }
   
@@ -1038,41 +1081,67 @@
       ];
     };
     
-    if (viewMode === 'combined') {
-      // Update combined graph with hover markers
-      const currentData = combinedGraph._fullData || [];
-      const baseTraces = currentData.filter((trace: any) => 
-        !['R', 'G', 'B'].includes(trace.name)
-      );
-      
-      // Use appropriate transform based on transfer mode
-      const markers = transferMode === 'oetf' 
-        ? createMarkers(TransferFunctions.sRGB.decode)
-        : createMarkers(TransferFunctions.sRGB.encode);
-      
-      Plotly.react(combinedGraph, [...baseTraces, ...markers], combinedGraph._fullLayout);
-    } else {
-      // Update separate graphs
-      const graphs = [
-        { element: srgbGraph, transform: TransferFunctions.sRGB },
-        { element: pqGraph, transform: TransferFunctions.PQ },
-        { element: hlgGraph, transform: TransferFunctions.HLG }
-      ];
-      
-      graphs.forEach(({ element, transform }) => {
-        if (!element || !element._fullData) return;
+    try {
+      if (viewMode === 'combined' && combinedGraph) {
+        // Use Plotly.addTraces/deleteTraces instead of react to avoid circular references
+        const graphDiv = combinedGraph;
         
-        const currentData = element._fullData;
-        const baseTraces = currentData.filter((trace: any) => 
-          !['R', 'G', 'B'].includes(trace.name)
-        );
+        // Get current trace count
+        const currentTraces = graphDiv.data || [];
+        const markerIndices: number[] = [];
         
-        const markers = transferMode === 'oetf'
-          ? createMarkers(transform.decode)
-          : createMarkers(transform.encode);
+        // Find and remove existing RGB markers
+        currentTraces.forEach((trace: any, index: number) => {
+          if (['R', 'G', 'B'].includes(trace.name)) {
+            markerIndices.push(index);
+          }
+        });
         
-        Plotly.react(element, [...baseTraces, ...markers], element._fullLayout);
-      });
+        if (markerIndices.length > 0) {
+          Plotly.deleteTraces(graphDiv, markerIndices);
+        }
+        
+        // Add new markers
+        const markers = transferMode === 'oetf' 
+          ? createMarkers(TransferFunctions.sRGB.decode)
+          : createMarkers(TransferFunctions.sRGB.encode);
+        
+        Plotly.addTraces(graphDiv, markers);
+      } else if (viewMode === 'separate') {
+        // Update separate graphs
+        const graphs = [
+          { element: srgbGraph, transform: TransferFunctions.sRGB },
+          { element: pqGraph, transform: TransferFunctions.PQ },
+          { element: hlgGraph, transform: TransferFunctions.HLG }
+        ];
+        
+        graphs.forEach(({ element, transform }) => {
+          if (!element || !element.data) return;
+          
+          const currentTraces = element.data || [];
+          const markerIndices: number[] = [];
+          
+          // Find and remove existing RGB markers
+          currentTraces.forEach((trace: any, index: number) => {
+            if (['R', 'G', 'B'].includes(trace.name)) {
+              markerIndices.push(index);
+            }
+          });
+          
+          if (markerIndices.length > 0) {
+            Plotly.deleteTraces(element, markerIndices);
+          }
+          
+          // Add new markers
+          const markers = transferMode === 'oetf'
+            ? createMarkers(transform.decode)
+            : createMarkers(transform.encode);
+          
+          Plotly.addTraces(element, markers);
+        });
+      }
+    } catch (error) {
+      console.error('[HDR] Error updating hover markers:', error);
     }
   }
   
