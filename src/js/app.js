@@ -1314,26 +1314,28 @@ function updateCombinedGraphHighlight(pixel) {
 
     if (transferMode === "eotf") {
       // EOTF mode: signal -> brightness
+      // All curves use the same x-axis (signal values from the image)
       ["sRGB", "PQ", "HLG"].forEach((type) => {
-        // X-axis: encoded signal values
+        // X-axis: same signal values for all curves (the sRGB-encoded values from the image)
         updates.x.push([pixel.srgb.r], [pixel.srgb.g], [pixel.srgb.b]);
-
-        // Y-axis: brightness output
+        
+        // Y-axis: brightness output depends on how each curve interprets the signal
         if (type === "sRGB") {
+          // sRGB signal -> sRGB decode -> brightness
           updates.y.push(
             [pixel.linear.r * 100],
             [pixel.linear.g * 100],
             [pixel.linear.b * 100]
           );
         } else if (type === "PQ") {
-          // PQ decode already returns values where 1.0 = 100 nits
+          // Interpret the signal as PQ and decode to brightness
           updates.y.push(
-            [TransferFunctions.PQ.decode(pixel.srgb.r)],
-            [TransferFunctions.PQ.decode(pixel.srgb.g)],
-            [TransferFunctions.PQ.decode(pixel.srgb.b)]
+            [TransferFunctions.PQ.decode(pixel.srgb.r) * 100],
+            [TransferFunctions.PQ.decode(pixel.srgb.g) * 100],
+            [TransferFunctions.PQ.decode(pixel.srgb.b) * 100]
           );
         } else {
-          // HLG
+          // HLG - interpret the signal as HLG and decode to brightness
           updates.y.push(
             [TransferFunctions.HLG.signalToNits(pixel.srgb.r)],
             [TransferFunctions.HLG.signalToNits(pixel.srgb.g)],
@@ -1506,25 +1508,28 @@ function updateCombinedEOTFGraph() {
       const symbol =
         type === "sRGB" ? "circle" : type === "PQ" ? "square" : "diamond";
 
+      // For EOTF, all curves use the same x-axis (the sRGB signal values)
+      // But they decode those signals differently to get brightness
       let xR = currentHoverPixel.srgb.r;
       let xG = currentHoverPixel.srgb.g;
       let xB = currentHoverPixel.srgb.b;
       let yR, yG, yB;
 
       if (type === "sRGB") {
+        // sRGB signal -> sRGB decode -> brightness
         yR = currentHoverPixel.linear.r * 100;
         yG = currentHoverPixel.linear.g * 100;
         yB = currentHoverPixel.linear.b * 100;
       } else if (type === "PQ") {
-        // PQ decode already returns values where 1.0 = 100 nits
-        yR = TransferFunctions.PQ.decode(currentHoverPixel.srgb.r) * 100;
-        yG = TransferFunctions.PQ.decode(currentHoverPixel.srgb.g) * 100;
-        yB = TransferFunctions.PQ.decode(currentHoverPixel.srgb.b) * 100;
+        // Interpret the sRGB signal values as PQ signals and decode
+        yR = TransferFunctions.PQ.decode(xR) * 100;
+        yG = TransferFunctions.PQ.decode(xG) * 100;
+        yB = TransferFunctions.PQ.decode(xB) * 100;
       } else {
-        // HLG - use the proper signalToNits function for consistency
-        yR = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.r);
-        yG = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.g);
-        yB = TransferFunctions.HLG.signalToNits(currentHoverPixel.srgb.b);
+        // HLG - interpret the sRGB signal values as HLG signals
+        yR = TransferFunctions.HLG.signalToNits(xR);
+        yG = TransferFunctions.HLG.signalToNits(xG);
+        yB = TransferFunctions.HLG.signalToNits(xB);
       }
 
       traces.push(
@@ -2843,17 +2848,21 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // View toggle buttons
-  separateView.addEventListener("click", () => {
-    viewMode = "separate";
-    separateView.classList.add("toolbar-btn-active");
-    combinedView.classList.remove("toolbar-btn-active");
+  if (separateView) {
+    separateView.addEventListener("click", () => {
+      viewMode = "separate";
+      separateView.classList.add("toolbar-btn-active");
+      if (combinedView) combinedView.classList.remove("toolbar-btn-active");
 
     // Show separate graphs, hide combined
     document
       .querySelectorAll(".graph")
       .forEach((g) => g.classList.remove("hidden"));
-    document.querySelector(".combined-graph").classList.add("hidden");
-    document.querySelector(".combined-graph").classList.remove("block");
+    const combinedGraphElem = document.getElementById("combinedGraph");
+    if (combinedGraphElem) {
+      combinedGraphElem.classList.add("hidden");
+      combinedGraphElem.classList.remove("block");
+    }
     // Re-initialize for separate view if needed
     if (transferMode === "eotf") {
       initializeSeparateEOTFGraphs();
@@ -2861,22 +2870,27 @@ document.addEventListener("DOMContentLoaded", function () {
       initializeSeparateOETFGraphs();
     }
     // Always update graphs to include histogram
-    if (histogram) {
-      updateGraphs();
-    }
-  });
+      if (histogram) {
+        updateGraphs();
+      }
+    });
+  }
 
-  combinedView.addEventListener("click", () => {
-    viewMode = "combined";
-    combinedView.classList.add("toolbar-btn-active");
-    separateView.classList.remove("toolbar-btn-active");
+  if (combinedView) {
+    combinedView.addEventListener("click", () => {
+      viewMode = "combined";
+      combinedView.classList.add("toolbar-btn-active");
+      if (separateView) separateView.classList.remove("toolbar-btn-active");
 
     // Hide separate graphs, show combined
     document
       .querySelectorAll(".graph")
       .forEach((g) => g.classList.add("hidden"));
-    document.querySelector(".combined-graph").classList.remove("hidden");
-    document.querySelector(".combined-graph").classList.add("block");
+    const combinedGraph = document.getElementById("combinedGraph");
+    if (combinedGraph) {
+      combinedGraph.classList.remove("hidden");
+      combinedGraph.classList.add("block");
+    }
     // Re-initialize for combined view
     if (transferMode === "eotf") {
       initializeCombinedEOTFGraph();
@@ -2893,7 +2907,8 @@ document.addEventListener("DOMContentLoaded", function () {
         Plotly.Plots.resize("combinedGraph");
       }
     }, 100);
-  });
+    });
+  }
 
   // Transfer mode toggles (OETF vs EOTF)
   oetfMode.addEventListener("click", function () {
@@ -2952,15 +2967,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Initialize with combined view
   if (viewMode === "combined") {
-    combinedView.classList.add("toolbar-btn-active");
-    separateView.classList.remove("toolbar-btn-active");
+    if (combinedView) combinedView.classList.add("toolbar-btn-active");
+    if (separateView) separateView.classList.remove("toolbar-btn-active");
 
     // Hide separate graphs, show combined
     document
       .querySelectorAll(".graph")
       .forEach((g) => g.classList.add("hidden"));
-    document.querySelector(".combined-graph").classList.remove("hidden");
-    document.querySelector(".combined-graph").classList.add("block");
+    const combinedGraph = document.getElementById("combinedGraph");
+    if (combinedGraph) {
+      combinedGraph.classList.remove("hidden");
+      combinedGraph.classList.add("block");
+    }
     // Ensure combined graph resizes properly on initial load
     setTimeout(() => {
       const combinedGraphDiv = document.getElementById("combinedGraph");

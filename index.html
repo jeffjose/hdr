@@ -32,169 +32,34 @@
         }
     </script>
     <style>
-        /* Plotly graph container override */
-        .graph, .combined-graph {
-            min-height: 0;
-        }
+        /* Minimal custom styles that can't be replaced with Tailwind */
         
         /* Checkbox accent color */
         input[type="checkbox"] {
             accent-color: #4a9eff;
         }
         
-        /* Canvas hidden by default */
-        #canvas {
-            display: none;
+        /* Container queries - not available in Tailwind */
+        .toolbar-container {
+            container-type: inline-size;
         }
         
-        /* Hover indicator transitions */
-        .hover-indicator {
-            will-change: transform;
-            transition: none;
+        @container (max-width: 600px) {
+            .toolbar-container {
+                gap: 6px;
+            }
+            .toolbar-container .w-px {
+                display: none;
+            }
         }
         
-        /* Sample menu animations */
-        .samples-menu {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.3s ease, opacity 0.2s ease;
+        @container (max-width: 400px) {
+            .toolbar-container {
+                gap: 4px;
+            }
         }
         
-        .samples-menu.active {
-            max-height: 500px;
-            opacity: 1;
-        }
-        
-        /* Layout styles */
-        .layout-side {
-            flex-direction: row;
-        }
-        
-        .layout-top {
-            flex-direction: column;
-        }
-        
-        .layout-side .left-pane {
-            border-right: none;
-            border-bottom: none;
-        }
-        
-        .layout-top .left-pane {
-            border-right: none;
-            border-bottom: none;
-            max-height: 50%;
-        }
-        
-        .layout-top .right-pane {
-            max-height: 50%;
-        }
-        
-        /* Smooth transition for layout changes */
-        #mainContainer {
-            transition: flex-direction 0.3s ease;
-        }
-        
-        #leftPane, #rightPane {
-            transition: max-height 0.3s ease, border 0.3s ease;
-        }
-        
-        /* Icon toggle styles */
-        .toggle-icon {
-            position: relative;
-            width: 24px;
-            height: 24px;
-        }
-        
-        input[type="checkbox"]:checked ~ .toggle-icon {
-            background-color: rgba(74, 158, 255, 0.15);
-            border-color: #4a9eff;
-        }
-        
-        input[type="checkbox"]:not(:checked) ~ .toggle-icon svg {
-            opacity: 0.3;
-        }
-        
-        /* Active button state for view modes */
-        .view-btn {
-            width: 28px;
-            height: 28px;
-        }
-        
-        .view-btn-active {
-            background-color: #4a9eff !important;
-            border-color: #4a9eff !important;
-        }
-        
-        .view-btn-active svg {
-            color: white !important;
-        }
-        
-        .view-btn:not(.view-btn-active) svg {
-            color: #999 !important;
-        }
-        
-        /* Standardized button styles - 24x24px everywhere */
-        .toolbar-btn {
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            background: #252525;
-            border: 1px solid #3a3a3a;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        
-        .toolbar-btn:hover {
-            background: #353535;
-            border-color: #4a9eff;
-        }
-        
-        .toolbar-btn svg {
-            width: 14px;
-            height: 14px;
-            color: #999;
-        }
-        
-        .toolbar-btn:hover svg {
-            color: #4a9eff;
-        }
-        
-        .toolbar-btn-active {
-            background-color: #4a9eff !important;
-            border-color: #4a9eff !important;
-        }
-        
-        .toolbar-btn-active svg {
-            color: white !important;
-        }
-        
-        /* Splitter styles */
-        .splitter {
-            position: relative;
-            background: #333;
-            flex-shrink: 0;
-            user-select: none;
-            transition: background-color 0.2s;
-        }
-        
-        .splitter:hover {
-            background: #4a9eff;
-        }
-        
-        .splitter.dragging {
-            background: #4a9eff;
-        }
-        
-        /* Side layout splitter */
-        .layout-side .splitter {
-            width: 4px;
-            cursor: col-resize;
-        }
-        
+        /* Splitter handle visualization */
         .layout-side .splitter-handle {
             position: absolute;
             top: 50%;
@@ -204,13 +69,6 @@
             height: 30px;
             background: rgba(255, 255, 255, 0.3);
             border-radius: 2px;
-        }
-        
-        /* Top layout splitter */
-        .layout-top .splitter {
-            height: 4px;
-            width: 100%;
-            cursor: row-resize;
         }
         
         .layout-top .splitter-handle {
@@ -223,134 +81,13 @@
             background: rgba(255, 255, 255, 0.3);
             border-radius: 2px;
         }
-        
-        /* Remove default flex behavior when resizing */
-        .layout-side.resizing .left-pane,
-        .layout-side.resizing .right-pane {
-            flex: none !important;
-        }
-        
-        .layout-top.resizing .left-pane,
-        .layout-top.resizing .right-pane {
-            flex: none !important;
-            max-height: none !important;
-        }
-        
-        /* Prevent text selection during drag */
-        .resizing * {
-            user-select: none !important;
-        }
-        
-        /* Toolbar responsive handling with container queries */
-        .toolbar-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: flex-start;
-            overflow: visible;
-            container-type: inline-size;
-            position: relative;
-            z-index: 100;
-        }
-        
-        /* Prevent toolbar items from shrinking */
-        .toolbar-container > * {
-            flex-shrink: 0;
-        }
-        
-        /* Container query for tight spaces - allow wrapping */
-        @container (max-width: 600px) {
-            .toolbar-container {
-                gap: 6px;
-            }
-            
-            .toolbar-container .w-px {
-                display: none; /* Hide separators when wrapped */
-            }
-        }
-        
-        /* Ensure dropdowns have high z-index and aren't clipped */
-        .samples-menu,
-        .layout-menu,
-        #samplesMenu,
-        #layoutMenu {
-            z-index: 9999 !important;
-            position: absolute !important;
-        }
-        
-        /* Make sure dropdown containers allow overflow */
-        .toolbar-container .relative {
-            position: relative;
-            overflow: visible !important;
-        }
-        
-        /* Ensure the toolbar itself allows overflow for dropdowns */
-        .bg-dark-surface.toolbar-container {
-            overflow: visible !important;
-        }
-        
-        /* Ensure parent panes handle overflow properly */
-        .left-pane,
-        .right-pane {
-            display: flex;
-            flex-direction: column;
-            overflow-x: visible;
-            overflow-y: auto;
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Only clip the image container and graphs */
-        #imageContainer {
-            overflow: hidden;
-            min-height: 0;
-            flex: 1;
-        }
-        
-        .graphs-container {
-            overflow: hidden;
-            min-height: 0;
-        }
-        
-        /* Additional container queries for very tight spaces */
-        @container (max-width: 400px) {
-            .toolbar-container {
-                gap: 4px;
-            }
-            
-            /* Stack some elements vertically in very tight spaces */
-            .toolbar-container > div {
-                min-width: 0;
-            }
-        }
-        
-        /* URL input in card */
-        #urlInputCard:focus + #loadUrlBtnCard,
-        #urlInputCard:not(:placeholder-shown) + #loadUrlBtnCard {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        
-        /* Sample card hover effects */
-        .sample-card {
-            transition: all 0.2s;
-        }
-        
-        .sample-card:hover {
-            transform: translateY(-2px);
-        }
-        
-        /* Upload card hover effect */
-        #uploadCard:hover {
-            transform: translateY(-2px);
-        }
     </style>
 </head>
 <body class="bg-dark-panel text-dark-text h-screen overflow-hidden font-sans">
-    <div class="flex h-screen layout-side" id="mainContainer">
-        <div class="flex-1 p-5 flex flex-col left-pane" id="leftPane">
+    <div class="flex h-screen flex-row transition-all duration-300 ease-in-out" id="mainContainer">
+        <div class="flex-1 p-5 flex flex-col overflow-x-visible overflow-y-auto relative z-[1]" id="leftPane">
             <!-- Compact Horizontal Input Bar -->
-            <div class="bg-dark-surface rounded-md p-2 mb-3 toolbar-container">
+            <div class="bg-dark-surface rounded-md p-2 mb-3 flex flex-wrap gap-2 items-start overflow-visible relative z-[100] toolbar-container [&>*]:flex-shrink-0">
                 <!-- Logo/Branding -->
                 <div class="flex items-center gap-2.5 pr-2 flex-shrink-0">
                     <div class="flex items-center justify-center">
@@ -382,13 +119,13 @@
                 
                 <!-- Layout Toggle -->
                 <div class="flex items-center gap-1">
-                    <button id="sideLayout" class="toolbar-btn toolbar-btn-active" title="Side by Side" data-layout="side">
+                    <button id="sideLayout" class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&.active]:bg-brand-blue [&.active]:border-brand-blue [&.active_svg]:text-white [&:not(.active)_svg]:text-dark-text-muted active" title="Side by Side" data-layout="side">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="8" height="18" rx="1"/>
                             <rect x="13" y="3" width="8" height="18" rx="1"/>
                         </svg>
                     </button>
-                    <button id="topLayout" class="toolbar-btn" title="Top/Bottom" data-layout="top">
+                    <button id="topLayout" class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&.active]:bg-brand-blue [&.active]:border-brand-blue [&.active_svg]:text-white [&:not(.active)_svg]:text-dark-text-muted" title="Top/Bottom" data-layout="top">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="18" height="8" rx="1"/>
                             <rect x="3" y="13" width="18" height="8" rx="1"/>
@@ -400,7 +137,7 @@
                 
                 <!-- Load Image Dropdown (Card Style) -->
                 <div class="relative">
-                    <button class="toolbar-btn" id="loadImageTrigger" title="Load Image">
+                    <button class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&_svg]:w-[14px] [&_svg]:h-[14px] [&_svg]:text-dark-text-muted hover:[&_svg]:text-brand-blue" id="loadImageTrigger" title="Load Image">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                             <circle cx="8.5" cy="8.5" r="1.5"/>
@@ -412,7 +149,7 @@
                             <!-- Header -->
                             <div class="flex items-center justify-between mb-2">
                                 <h3 class="text-xs font-semibold text-dark-text uppercase tracking-wider">Load Image</h3>
-                                <button class="toolbar-btn" id="closeLoadMenu" title="Close">
+                                <button class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&_svg]:w-[14px] [&_svg]:h-[14px] [&_svg]:text-dark-text-muted hover:[&_svg]:text-brand-blue" id="closeLoadMenu" title="Close">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <line x1="18" y1="6" x2="6" y2="18"/>
                                         <line x1="6" y1="6" x2="18" y2="18"/>
@@ -423,7 +160,7 @@
                             <!-- Input Methods Row -->
                             <div class="flex gap-2 mb-3">
                                 <!-- Upload Card -->
-                                <div class="flex-1 bg-dark-surface-2 border border-dark-border rounded p-2 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all group" id="uploadCard">
+                                <div class="flex-1 bg-dark-surface-2 border border-dark-border rounded p-2 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 group hover:-translate-y-0.5" id="uploadCard">
                                     <div class="flex items-center gap-2">
                                         <div class="w-6 h-6 rounded bg-brand-blue/10 flex items-center justify-center group-hover:bg-brand-blue/20 transition-colors">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand-blue">
@@ -461,39 +198,39 @@
                                 <div class="mb-2">
                                     <div class="text-[9px] text-dark-text-muted mb-1">Test Patterns</div>
                                     <div class="grid grid-cols-5 gap-1.5">
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="red">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="red">
                                             <div class="text-sm">🔴</div>
                                             <div class="text-[8px] text-dark-text-muted">Red</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="green">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="green">
                                             <div class="text-sm">🟢</div>
                                             <div class="text-[8px] text-dark-text-muted">Green</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="blue">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="blue">
                                             <div class="text-sm">🔵</div>
                                             <div class="text-[8px] text-dark-text-muted">Blue</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="white">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="white">
                                             <div class="text-sm">⚪</div>
                                             <div class="text-[8px] text-dark-text-muted">White</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="black">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="black">
                                             <div class="text-sm">⚫</div>
                                             <div class="text-[8px] text-dark-text-muted">Black</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="gradient">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="gradient">
                                             <div class="text-sm">🌈</div>
                                             <div class="text-[8px] text-dark-text-muted">Gradient</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="radialGradient">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="radialGradient">
                                             <div class="text-sm">🎯</div>
                                             <div class="text-[8px] text-dark-text-muted">Radial</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="colorBars">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="colorBars">
                                             <div class="text-sm">📊</div>
                                             <div class="text-[8px] text-dark-text-muted">Bars</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="graySteps">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="graySteps">
                                             <div class="text-sm">📶</div>
                                             <div class="text-[8px] text-dark-text-muted">Steps</div>
                                         </div>
@@ -504,27 +241,27 @@
                                 <div>
                                     <div class="text-[9px] text-dark-text-muted mb-1">Scenes</div>
                                     <div class="grid grid-cols-6 gap-1.5">
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="landscape">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="landscape">
                                             <div class="text-sm">🏞️</div>
                                             <div class="text-[8px] text-dark-text-muted">Nature</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="sunset">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="sunset">
                                             <div class="text-sm">🌅</div>
                                             <div class="text-[8px] text-dark-text-muted">Sunset</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="neon">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="neon">
                                             <div class="text-sm">💫</div>
                                             <div class="text-[8px] text-dark-text-muted">Neon</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="city">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="city">
                                             <div class="text-sm">🌃</div>
                                             <div class="text-[8px] text-dark-text-muted">City</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="fire">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="fire">
                                             <div class="text-sm">🔥</div>
                                             <div class="text-[8px] text-dark-text-muted">Fire</div>
                                         </div>
-                                        <div class="sample-card bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all text-center" data-sample="ocean">
+                                        <div class="bg-dark-surface-2 border border-dark-border rounded p-1.5 cursor-pointer hover:border-brand-blue hover:bg-dark-hover transition-all duration-200 text-center hover:-translate-y-0.5" data-sample="ocean">
                                             <div class="text-sm">🌊</div>
                                             <div class="text-[8px] text-dark-text-muted">Ocean</div>
                                         </div>
@@ -537,8 +274,8 @@
                 
                 <!-- HDR Toggle -->
                 <label class="relative flex items-center cursor-pointer group" title="Toggle HDR Mode">
-                    <input type="checkbox" id="hdrToggle" class="sr-only">
-                    <div class="toggle-icon rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all hover:bg-dark-hover hover:border-brand-blue" style="width: 24px; height: 24px;">
+                    <input type="checkbox" id="hdrToggle" class="sr-only peer">
+                    <div class="w-6 h-6 rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all duration-200 hover:bg-dark-hover hover:border-brand-blue peer-checked:bg-brand-blue/15 peer-checked:border-brand-blue [&_svg]:peer-not-checked:opacity-30">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-brand-blue font-bold">
                             <text x="12" y="16" text-anchor="middle" fill="currentColor" font-size="12" font-weight="bold">HDR</text>
                         </svg>
@@ -554,19 +291,19 @@
             </div>
             
             <!-- Image Display Area -->
-            <div class="flex-1 flex items-center justify-center bg-dark-bg rounded-lg overflow-hidden relative mt-2.5" id="imageContainer">
+            <div class="flex-1 flex items-center justify-center bg-dark-bg rounded-lg overflow-hidden relative mt-2.5 min-h-0" id="imageContainer">
                 <img id="uploadedImage" style="display: none;" class="max-w-full max-h-full object-contain">
             </div>
         </div>
         
         <!-- Draggable Separator -->
-        <div class="splitter" id="splitter">
+        <div class="relative bg-dark-border flex-shrink-0 select-none transition-colors duration-200 hover:bg-brand-blue [&.dragging]:bg-brand-blue w-1 cursor-col-resize" id="splitter">
             <div class="splitter-handle"></div>
         </div>
         
-        <div class="flex-1 p-5 flex flex-col right-pane" id="rightPane">
+        <div class="flex-1 p-5 flex flex-col overflow-x-visible overflow-y-auto relative z-[1]" id="rightPane">
             <!-- Unified Control Panel -->
-            <div class="controls p-2 bg-dark-surface-2 rounded-lg mb-2.5 toolbar-container">
+            <div class="controls p-2 bg-dark-surface-2 rounded-lg mb-2.5 flex flex-wrap gap-2 items-start overflow-visible relative z-[100] toolbar-container [&>*]:flex-shrink-0">
                 <div class="flex items-center gap-2 flex-wrap">
                     <!-- PRIMARY: Transfer Function Mode -->
                     <div class="flex items-center gap-1.5">
@@ -608,7 +345,7 @@
                     <div class="flex items-center gap-1.5">
                         <span class="text-[10px] text-dark-text-dim uppercase tracking-wider font-medium">View</span>
                         <div class="flex items-center gap-0.5">
-                            <button id="separateView" class="toolbar-btn" title="Separate View">
+                            <button id="separateView" class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&.active]:bg-brand-blue [&.active]:border-brand-blue [&.active_svg]:text-white [&:not(.active)_svg]:text-dark-text-muted [&_svg]:w-[14px] [&_svg]:h-[14px]" title="Separate View">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="8" height="8" rx="1"/>
                                     <rect x="13" y="3" width="8" height="8" rx="1"/>
@@ -616,7 +353,7 @@
                                     <rect x="13" y="13" width="8" height="8" rx="1"/>
                                 </svg>
                             </button>
-                            <button id="combinedView" class="toolbar-btn toolbar-btn-active" title="Combined View">
+                            <button id="combinedView" class="w-6 h-6 flex items-center justify-center rounded bg-dark-surface-2 border border-dark-border-2 transition-all duration-200 cursor-pointer hover:bg-dark-hover hover:border-brand-blue [&.active]:bg-brand-blue [&.active]:border-brand-blue [&.active_svg]:text-white [&:not(.active)_svg]:text-dark-text-muted [&_svg]:w-[14px] [&_svg]:h-[14px] active" title="Combined View">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <rect x="3" y="3" width="18" height="18" rx="1"/>
                                     <path d="M3 12 L21 12" stroke-dasharray="2 2" opacity="0.5"/>
@@ -630,8 +367,8 @@
                     <div class="flex items-center gap-0.5">
                         <!-- Transfer Curves Toggle -->
                         <label class="relative flex items-center cursor-pointer group" title="Transfer Curves">
-                            <input type="checkbox" id="showCurves" checked class="sr-only">
-                            <div class="toggle-icon rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all hover:bg-dark-hover hover:border-brand-blue">
+                            <input type="checkbox" id="showCurves" checked class="sr-only peer">
+                            <div class="w-6 h-6 rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all duration-200 hover:bg-dark-hover hover:border-brand-blue peer-checked:bg-brand-blue/15 peer-checked:border-brand-blue [&_svg]:peer-not-checked:opacity-30">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-brand-blue">
                                     <path d="M3 20 Q 8 16, 12 10 T 21 3" stroke-linecap="round"/>
                                 </svg>
@@ -640,8 +377,8 @@
                         
                         <!-- Histogram Toggle -->
                         <label class="relative flex items-center cursor-pointer group" title="Histogram">
-                            <input type="checkbox" id="showHistogram" checked class="sr-only">
-                            <div class="toggle-icon rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all hover:bg-dark-hover hover:border-brand-blue" style="width: 24px; height: 24px;">
+                            <input type="checkbox" id="showHistogram" checked class="sr-only peer">
+                            <div class="w-6 h-6 rounded bg-dark-surface-3 border border-dark-border-2 flex items-center justify-center transition-all duration-200 hover:bg-dark-hover hover:border-brand-blue peer-checked:bg-brand-blue/15 peer-checked:border-brand-blue [&_svg]:peer-not-checked:opacity-30">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="text-brand-blue">
                                     <rect x="4" y="14" width="3" height="7" fill="currentColor"/>
                                     <rect x="9" y="9" width="3" height="12" fill="currentColor"/>
@@ -653,17 +390,17 @@
                     </div>
                 </div>
             </div>
-            <div class="graphs-container flex-1 flex flex-col gap-2.5 combined-view" id="graphsContainer">
-                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="srgbGraph"></div>
-                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="pqGraph"></div>
-                <div class="graph flex-1 bg-dark-bg rounded-lg hidden" id="hlgGraph"></div>
-                <div class="combined-graph flex-1 bg-dark-bg rounded-lg block" id="combinedGraph"></div>
+            <div class="flex-1 flex flex-col gap-2.5 overflow-hidden min-h-0" id="graphsContainer">
+                <div class="flex-1 bg-dark-bg rounded-lg hidden min-h-0" id="srgbGraph"></div>
+                <div class="flex-1 bg-dark-bg rounded-lg hidden min-h-0" id="pqGraph"></div>
+                <div class="flex-1 bg-dark-bg rounded-lg hidden min-h-0" id="hlgGraph"></div>
+                <div class="flex-1 bg-dark-bg rounded-lg block min-h-0" id="combinedGraph"></div>
             </div>
         </div>
     </div>
     
-    <canvas id="canvas"></canvas>
-    <div class="hover-indicator fixed w-5 h-5 border-2 border-brand-blue rounded-full pointer-events-none hidden -translate-x-1/2 -translate-y-1/2 z-[1000] shadow-[0_0_10px_rgba(74,158,255,0.5)]" id="hoverIndicator"></div>
+    <canvas id="canvas" class="hidden"></canvas>
+    <div class="fixed w-5 h-5 border-2 border-brand-blue rounded-full pointer-events-none hidden -translate-x-1/2 -translate-y-1/2 z-[1000] shadow-[0_0_10px_rgba(74,158,255,0.5)] will-change-transform" id="hoverIndicator" style="transition: none;"></div>
     <script src="src/js/histogram.js"></script>
     <script src="src/js/test-patterns.js"></script>
     <script type="module" src="src/js/app.js"></script>
