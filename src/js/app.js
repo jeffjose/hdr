@@ -423,7 +423,38 @@ function initializeCombinedEOTFGraph() {
         color: "white"
       }
     },
-    title: "EOTF (Display Response Curves)"
+    title: "EOTF (Display Response Curves)",
+    shapes: [
+      {
+        type: "line",
+        x0: 0,
+        x1: 1.05,
+        y0: peakBrightness,
+        y1: peakBrightness,
+        line: {
+          color: "#666",
+          width: 1,
+          dash: "dash"
+        }
+      }
+    ],
+    annotations: [
+      {
+        x: 0.98,
+        y: peakBrightness,
+        xref: "x",
+        yref: "y",
+        text: `Peak: ${peakBrightness} nits`,
+        showarrow: false,
+        font: {
+          size: 10,
+          color: "#999"
+        },
+        xanchor: "right",
+        yanchor: "bottom",
+        yshift: 5
+      }
+    ]
   };
 
   const config = {
@@ -1603,7 +1634,38 @@ function updateCombinedEOTFGraph() {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         color: "white"
       }
-    }
+    },
+    shapes: [
+      {
+        type: "line",
+        x0: 0,
+        x1: 1.05,
+        y0: peakBrightness,
+        y1: peakBrightness,
+        line: {
+          color: "#666",
+          width: 1,
+          dash: "dash"
+        }
+      }
+    ],
+    annotations: [
+      {
+        x: 0.98,
+        y: peakBrightness,
+        xref: "x",
+        yref: "y",
+        text: `Peak: ${peakBrightness} nits`,
+        showarrow: false,
+        font: {
+          size: 10,
+          color: "#999"
+        },
+        xanchor: "right",
+        yanchor: "bottom",
+        yshift: 5
+      }
+    ]
   };
 
   const config = {
