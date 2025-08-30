@@ -155,7 +155,9 @@
         title: "Input Signal (0-1)",
         gridcolor: "#333",
         zerolinecolor: "#555",
-        range: [0, 1.05]
+        range: [0, 1.05],
+        autorange: false,
+        fixedrange: false
       },
       yaxis: {
         title: "Output Brightness (cd/m²)",
@@ -428,7 +430,9 @@
         title: "Encoded Signal (0-1)",
         gridcolor: "#333",
         zerolinecolor: "#555",
-        range: [0, 1.05]
+        range: [0, 1.05],
+        autorange: false,
+        fixedrange: false
       },
       showlegend: true,
       legend: {
@@ -1045,99 +1049,144 @@
     const g = currentHoverPixel.g / 255;
     const b = currentHoverPixel.b / 255;
     
-    // Create hover markers for R, G, B channels
-    const createMarkers = (transform: (v: number) => number) => {
-      return [
-        {
-          x: [transferMode === 'oetf' ? transform(r) : r],
-          y: [transferMode === 'oetf' ? r : transform(r)],
-          type: 'scatter',
-          mode: 'markers',
-          marker: { color: 'red', size: 8 },
-          name: 'R',
-          showlegend: false,
-          hovertemplate: 'R: %{x:.3f}, %{y:.3f}<extra></extra>'
-        },
-        {
-          x: [transferMode === 'oetf' ? transform(g) : g],
-          y: [transferMode === 'oetf' ? g : transform(g)],
-          type: 'scatter',
-          mode: 'markers',
-          marker: { color: 'green', size: 8 },
-          name: 'G',
-          showlegend: false,
-          hovertemplate: 'G: %{x:.3f}, %{y:.3f}<extra></extra>'
-        },
-        {
-          x: [transferMode === 'oetf' ? transform(b) : b],
-          y: [transferMode === 'oetf' ? b : transform(b)],
-          type: 'scatter',
-          mode: 'markers',
-          marker: { color: 'blue', size: 8 },
-          name: 'B',
-          showlegend: false,
-          hovertemplate: 'B: %{x:.3f}, %{y:.3f}<extra></extra>'
-        }
-      ];
-    };
-    
     try {
-      if (viewMode === 'combined' && combinedGraph) {
-        // Use Plotly.addTraces/deleteTraces instead of react to avoid circular references
-        const graphDiv = combinedGraph;
+      if (viewMode === 'combined' && combinedGraph?.data) {
+        // For combined view, use restyle for better performance
+        const numTraces = combinedGraph.data.length;
+        let rIndex = -1, gIndex = -1, bIndex = -1;
         
-        // Get current trace count
-        const currentTraces = graphDiv.data || [];
-        const markerIndices: number[] = [];
-        
-        // Find and remove existing RGB markers
-        currentTraces.forEach((trace: any, index: number) => {
-          if (['R', 'G', 'B'].includes(trace.name)) {
-            markerIndices.push(index);
-          }
-        });
-        
-        if (markerIndices.length > 0) {
-          Plotly.deleteTraces(graphDiv, markerIndices);
+        // Find existing marker traces
+        for (let i = 0; i < numTraces; i++) {
+          if (combinedGraph.data[i].name === 'R') rIndex = i;
+          else if (combinedGraph.data[i].name === 'G') gIndex = i;
+          else if (combinedGraph.data[i].name === 'B') bIndex = i;
         }
         
-        // Add new markers
-        const markers = transferMode === 'oetf' 
-          ? createMarkers(TransferFunctions.sRGB.decode)
-          : createMarkers(TransferFunctions.sRGB.encode);
-        
-        Plotly.addTraces(graphDiv, markers);
-      } else if (viewMode === 'separate') {
-        // Update separate graphs
-        const graphs = [
-          { element: srgbGraph, transform: TransferFunctions.sRGB },
-          { element: pqGraph, transform: TransferFunctions.PQ },
-          { element: hlgGraph, transform: TransferFunctions.HLG }
-        ];
-        
-        graphs.forEach(({ element, transform }) => {
-          if (!element || !element.data) return;
+        if (transferMode === 'eotf') {
+          // EOTF: input signal -> output brightness
+          const rBrightness = TransferFunctions.sRGB.decode(r) * 100;
+          const gBrightness = TransferFunctions.sRGB.decode(g) * 100;
+          const bBrightness = TransferFunctions.sRGB.decode(b) * 100;
           
-          const currentTraces = element.data || [];
-          const markerIndices: number[] = [];
-          
-          // Find and remove existing RGB markers
-          currentTraces.forEach((trace: any, index: number) => {
-            if (['R', 'G', 'B'].includes(trace.name)) {
-              markerIndices.push(index);
-            }
-          });
-          
-          if (markerIndices.length > 0) {
-            Plotly.deleteTraces(element, markerIndices);
+          if (rIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[r]], y: [[rBrightness]]}, rIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [r], y: [rBrightness], type: 'scatter', mode: 'markers',
+              marker: { color: 'red', size: 8 }, name: 'R', showlegend: false
+            });
           }
           
-          // Add new markers
-          const markers = transferMode === 'oetf'
-            ? createMarkers(transform.decode)
-            : createMarkers(transform.encode);
+          if (gIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[g]], y: [[gBrightness]]}, gIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [g], y: [gBrightness], type: 'scatter', mode: 'markers',
+              marker: { color: 'green', size: 8 }, name: 'G', showlegend: false
+            });
+          }
           
-          Plotly.addTraces(element, markers);
+          if (bIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[b]], y: [[bBrightness]]}, bIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [b], y: [bBrightness], type: 'scatter', mode: 'markers',
+              marker: { color: 'blue', size: 8 }, name: 'B', showlegend: false
+            });
+          }
+        } else {
+          // OETF: linear input -> encoded signal
+          const rLinear = TransferFunctions.sRGB.decode(r);
+          const gLinear = TransferFunctions.sRGB.decode(g);
+          const bLinear = TransferFunctions.sRGB.decode(b);
+          
+          if (rIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[rLinear]], y: [[r]]}, rIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [rLinear], y: [r], type: 'scatter', mode: 'markers',
+              marker: { color: 'red', size: 8 }, name: 'R', showlegend: false
+            });
+          }
+          
+          if (gIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[gLinear]], y: [[g]]}, gIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [gLinear], y: [g], type: 'scatter', mode: 'markers',
+              marker: { color: 'green', size: 8 }, name: 'G', showlegend: false
+            });
+          }
+          
+          if (bIndex >= 0) {
+            Plotly.restyle(combinedGraph, {x: [[bLinear]], y: [[b]]}, bIndex);
+          } else {
+            Plotly.addTraces(combinedGraph, {
+              x: [bLinear], y: [b], type: 'scatter', mode: 'markers',
+              marker: { color: 'blue', size: 8 }, name: 'B', showlegend: false
+            });
+          }
+        }
+      } else if (viewMode === 'separate') {
+        // Handle separate graphs
+        [srgbGraph, pqGraph, hlgGraph].forEach((graph, graphIndex) => {
+          if (!graph?.data) return;
+          
+          const transform = graphIndex === 0 ? TransferFunctions.sRGB :
+                           graphIndex === 1 ? TransferFunctions.PQ :
+                           TransferFunctions.HLG;
+          
+          const numTraces = graph.data.length;
+          let rIndex = -1, gIndex = -1, bIndex = -1;
+          
+          // Find existing marker traces
+          for (let i = 0; i < numTraces; i++) {
+            if (graph.data[i].name === 'R') rIndex = i;
+            else if (graph.data[i].name === 'G') gIndex = i;
+            else if (graph.data[i].name === 'B') bIndex = i;
+          }
+          
+          if (transferMode === 'eotf') {
+            // EOTF mode
+            const factor = graphIndex === 0 ? 100 : graphIndex === 1 ? 100 : peakBrightness;
+            const rY = transform.decode(r) * factor;
+            const gY = transform.decode(g) * factor;
+            const bY = transform.decode(b) * factor;
+            
+            const updates = {
+              x: [[r], [g], [b]],
+              y: [[rY], [gY], [bY]]
+            };
+            
+            const indices = [];
+            if (rIndex >= 0) indices.push(rIndex);
+            if (gIndex >= 0) indices.push(gIndex);
+            if (bIndex >= 0) indices.push(bIndex);
+            
+            if (indices.length > 0) {
+              Plotly.restyle(graph, updates, indices);
+            }
+            
+            // Add missing traces
+            if (rIndex < 0) {
+              Plotly.addTraces(graph, {
+                x: [r], y: [rY], type: 'scatter', mode: 'markers',
+                marker: { color: 'red', size: 8 }, name: 'R', showlegend: false
+              });
+            }
+            if (gIndex < 0) {
+              Plotly.addTraces(graph, {
+                x: [g], y: [gY], type: 'scatter', mode: 'markers',
+                marker: { color: 'green', size: 8 }, name: 'G', showlegend: false
+              });
+            }
+            if (bIndex < 0) {
+              Plotly.addTraces(graph, {
+                x: [b], y: [bY], type: 'scatter', mode: 'markers',
+                marker: { color: 'blue', size: 8 }, name: 'B', showlegend: false
+              });
+            }
+          }
         });
       }
     } catch (error) {
