@@ -1,31 +1,69 @@
-export function calculateHistogram(imageData: ImageData): { r: number[], g: number[], b: number[], luminance: number[] } {
-  const r = new Array(256).fill(0);
-  const g = new Array(256).fill(0);
-  const b = new Array(256).fill(0);
-  const luminance = new Array(256).fill(0);
+// sRGB decode function for histogram calculation
+function srgbDecode(value: number): number {
+  if (value <= 0.04045) {
+    return value / 12.92;
+  } else {
+    return Math.pow((value + 0.055) / 1.055, 2.4);
+  }
+}
+
+export function calculateHistogram(imageData: ImageData): { 
+  r: number[], 
+  g: number[], 
+  b: number[], 
+  luminance: number[],
+  bins: number,
+  binWidth: number
+} {
+  const bins = 100; // Number of histogram bins (matching reference)
+  const binWidth = 1 / bins;
+  const histogramR = new Array(bins).fill(0);
+  const histogramG = new Array(bins).fill(0);
+  const histogramB = new Array(bins).fill(0);
+  const histogramLuminance = new Array(bins).fill(0);
 
   const data = imageData.data;
-  const pixelCount = imageData.width * imageData.height;
+  const totalPixels = imageData.width * imageData.height;
 
   for (let i = 0; i < data.length; i += 4) {
-    const red = data[i];
-    const green = data[i + 1];
-    const blue = data[i + 2];
+    // Get sRGB values (0-1)
+    const srgb = {
+      r: data[i] / 255,
+      g: data[i + 1] / 255,
+      b: data[i + 2] / 255
+    };
     
-    r[red]++;
-    g[green]++;
-    b[blue]++;
+    // Convert to linear space
+    const linear = {
+      r: srgbDecode(srgb.r),
+      g: srgbDecode(srgb.g),
+      b: srgbDecode(srgb.b)
+    };
     
-    const lum = Math.round(0.299 * red + 0.587 * green + 0.114 * blue);
-    luminance[lum]++;
+    // Calculate luminance using BT.709 coefficients
+    const luminance = 0.2126 * linear.r + 0.7152 * linear.g + 0.0722 * linear.b;
+    
+    // Determine bin index (0 to bins-1)
+    const binR = Math.min(Math.floor(linear.r * bins), bins - 1);
+    const binG = Math.min(Math.floor(linear.g * bins), bins - 1);
+    const binB = Math.min(Math.floor(linear.b * bins), bins - 1);
+    const binL = Math.min(Math.floor(luminance * bins), bins - 1);
+    
+    histogramR[binR]++;
+    histogramG[binG]++;
+    histogramB[binB]++;
+    histogramLuminance[binL]++;
   }
 
-  const normalize = (arr: number[]) => arr.map(v => v / pixelCount);
+  // Normalize histograms (convert to percentages)
+  const normalize = (hist: number[]) => hist.map(count => (count / totalPixels) * 100);
   
   return {
-    r: normalize(r),
-    g: normalize(g),
-    b: normalize(b),
-    luminance: normalize(luminance)
+    r: normalize(histogramR),
+    g: normalize(histogramG),
+    b: normalize(histogramB),
+    luminance: normalize(histogramLuminance),
+    bins,
+    binWidth
   };
 }

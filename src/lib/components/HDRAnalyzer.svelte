@@ -189,7 +189,10 @@
 
     const config: Partial<Config> = {
       responsive: true,
-      displayModeBar: false,
+      displayModeBar: true,
+      scrollZoom: true,
+      doubleClick: 'reset',
+      modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],
       displaylogo: false
     };
 
@@ -222,7 +225,9 @@
       hovertemplate: "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
     }];
     
-    Plotly.newPlot(srgbGraph, srgbData, srgbLayout, config);
+    Plotly.newPlot(srgbGraph, srgbData, srgbLayout, config).then(() => {
+      addAxisConstraints(srgbGraph);
+    });
 
     // PQ EOTF
     const pqLayout: Partial<Layout> = {
@@ -246,7 +251,9 @@
       hovertemplate: "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
     }];
     
-    Plotly.newPlot(pqGraph, pqData, pqLayout, config);
+    Plotly.newPlot(pqGraph, pqData, pqLayout, config).then(() => {
+      addAxisConstraints(pqGraph);
+    });
 
     // HLG EOTF
     const hlgLayout: Partial<Layout> = {
@@ -272,7 +279,9 @@
       hovertemplate: "Signal: %{x:.3f}<br>Brightness: %{y:.1f} cd/m²<extra></extra>"
     }];
     
-    Plotly.newPlot(hlgGraph, hlgData, hlgLayout, config);
+    Plotly.newPlot(hlgGraph, hlgData, hlgLayout, config).then(() => {
+      addAxisConstraints(hlgGraph);
+    });
   }
 
   function initializeCombinedEOTFGraph() {
@@ -361,7 +370,11 @@
 
     const config: Partial<Config> = {
       responsive: true,
-      displayModeBar: false
+      displayModeBar: true,
+      scrollZoom: true,
+      doubleClick: 'reset',
+      modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],
+      displaylogo: false
     };
 
     const numPoints = 100;
@@ -400,7 +413,9 @@
       }
     ];
 
-    Plotly.newPlot(combinedGraph, traces, layout, config);
+    Plotly.newPlot(combinedGraph, traces, layout, config).then(() => {
+      addAxisConstraints(combinedGraph);
+    });
   }
 
   function initializeOETFGraphs() {
@@ -452,7 +467,10 @@
 
     const config: Partial<Config> = {
       responsive: true,
-      displayModeBar: false,
+      displayModeBar: true,
+      scrollZoom: true,
+      doubleClick: 'reset',
+      modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],
       displaylogo: false
     };
 
@@ -487,7 +505,9 @@
       hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
     }];
 
-    Plotly.newPlot(srgbGraph, srgbData, srgbLayout, config);
+    Plotly.newPlot(srgbGraph, srgbData, srgbLayout, config).then(() => {
+      addAxisConstraints(srgbGraph);
+    });
 
     // PQ OETF - uses absolute scale where 1.0 = 100 nits, 100 = 10,000 nits
     const pqLayout: Partial<Layout> = {
@@ -514,7 +534,9 @@
       text: pqLinearValues.map(v => `${(v * 100).toFixed(0)} nits`)
     }];
 
-    Plotly.newPlot(pqGraph, pqData, pqLayout, config);
+    Plotly.newPlot(pqGraph, pqData, pqLayout, config).then(() => {
+      addAxisConstraints(pqGraph);
+    });
 
     // HLG OETF - relative scale where 1.0 = reference white, 12 = peak
     const hlgLayout: Partial<Layout> = {
@@ -540,7 +562,9 @@
       hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
     }];
 
-    Plotly.newPlot(hlgGraph, hlgData, hlgLayout, config);
+    Plotly.newPlot(hlgGraph, hlgData, hlgLayout, config).then(() => {
+      addAxisConstraints(hlgGraph);
+    });
   }
 
   function initializeCombinedOETFGraph() {
@@ -603,7 +627,11 @@
 
     const config: Partial<Config> = {
       responsive: true,
-      displayModeBar: false
+      displayModeBar: true,
+      scrollZoom: true,
+      doubleClick: 'reset',
+      modeBarButtonsToRemove: ['pan2d', 'select2d', 'lasso2d'],
+      displaylogo: false
     };
 
     const numPoints = 200;
@@ -650,11 +678,45 @@
       }
     ];
 
-    Plotly.newPlot(combinedGraph, traces, layout, config);
+    Plotly.newPlot(combinedGraph, traces, layout, config).then(() => {
+      addAxisConstraints(combinedGraph);
+    });
   }
 
   function setupEventListeners() {
     // Splitter drag functionality will be added inline
+  }
+  
+  function addAxisConstraints(graphElement: any) {
+    if (!graphElement || !Plotly) return;
+    
+    graphElement.on('plotly_relayout', function(eventdata: any) {
+      let update: any = {};
+      let needsUpdate = false;
+      
+      // Check and constrain x-axis
+      if (eventdata['xaxis.range[0]'] !== undefined && eventdata['xaxis.range[0]'] < 0) {
+        update['xaxis.range[0]'] = 0;
+        if (eventdata['xaxis.range[1]'] !== undefined) {
+          update['xaxis.range[1]'] = eventdata['xaxis.range[1]'];
+        }
+        needsUpdate = true;
+      }
+      
+      // Check and constrain y-axis
+      if (eventdata['yaxis.range[0]'] !== undefined && eventdata['yaxis.range[0]'] < 0) {
+        update['yaxis.range[0]'] = 0;
+        if (eventdata['yaxis.range[1]'] !== undefined) {
+          update['yaxis.range[1]'] = eventdata['yaxis.range[1]'];
+        }
+        needsUpdate = true;
+      }
+      
+      // Apply the constraint if needed
+      if (needsUpdate) {
+        Plotly.relayout(graphElement, update);
+      }
+    });
   }
 
   function handleSplitterMouseDown(e: MouseEvent) {
@@ -862,8 +924,9 @@
       try {
         if (viewMode === 'combined' && combinedGraph?.data) {
           const markerIndices: number[] = [];
+          const markerNames = ['sRGB-R', 'sRGB-G', 'sRGB-B', 'PQ-R', 'PQ-G', 'PQ-B', 'HLG-R', 'HLG-G', 'HLG-B', 'R', 'G', 'B'];
           combinedGraph.data.forEach((trace: any, index: number) => {
-            if (['R', 'G', 'B'].includes(trace.name)) {
+            if (markerNames.includes(trace.name)) {
               markerIndices.push(index);
             }
           });
@@ -964,28 +1027,55 @@
     if (viewMode === 'combined' && !combinedGraph?.data) return;
     if (viewMode === 'separate' && (!srgbGraph?.data || !pqGraph?.data || !hlgGraph?.data)) return;
     
-    // Create histogram trace
-    const maxValue = Math.max(...histogram.luminance);
-    if (maxValue === 0) return; // Avoid division by zero
+    // Create histogram trace with proper area style
+    const maxHistValue = Math.max(...histogram.luminance);
+    if (maxHistValue === 0) return; // Avoid division by zero
     
-    const histogramTrace = {
-      x: Array.from({ length: histogram.bins }, (_, i) => i / histogram.bins),
-      y: histogram.luminance.map(v => v / maxValue * 0.3), // Scale to 30% of graph height
+    // Build histogram x and y arrays
+    const histX: number[] = [];
+    const histY: number[] = [];
+    
+    for (let i = 0; i < histogram.bins; i++) {
+      const x = (i + 0.5) * histogram.binWidth;
+      histX.push(x);
+      
+      // histogram.luminance is already in percentages (0-100)
+      // Normalize to 0-1 for consistent scaling
+      let value = histogram.luminance[i] / maxHistValue;
+      
+      // Apply log scale transformation like reference
+      if (histogram.luminance[i] > 0) {
+        value = Math.log10(1 + value * 99) / 2;
+      }
+      
+      histY.push(value * 0.3); // Scale to 30% of graph height
+    }
+    
+    // Add boundary points for proper area fill
+    const areaX = [0, ...histX, 1];
+    const areaY = [0, ...histY, 0];
+    
+    const createHistogramForColor = (color: number[]) => ({
+      x: areaX,
+      y: areaY,
       type: 'scatter',
       mode: 'lines',
-      fill: 'tozeroy',
-      fillcolor: 'rgba(255, 255, 255, 0.1)',
-      line: {
-        color: 'rgba(255, 255, 255, 0.3)',
-        width: 1
-      },
       name: 'Histogram',
+      line: {
+        color: `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.7)`,
+        width: 2,
+        shape: 'spline',
+        smoothing: 1.0
+      },
+      fill: 'tozeroy',
+      fillcolor: `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.15)`,
       yaxis: 'y2',
-      hoverinfo: 'skip'
-    };
+      hoverinfo: 'skip',
+      showlegend: false
+    });
     
     try {
-      // Update graphs based on view mode
+      // Update graphs based on view mode and transfer mode
       if (viewMode === 'combined' && combinedGraph) {
         // Remove existing histogram if present
         const histogramIndex = combinedGraph.data?.findIndex((trace: any) => trace.name === 'Histogram');
@@ -993,24 +1083,33 @@
           Plotly.deleteTraces(combinedGraph, histogramIndex);
         }
         
-        // Add new histogram trace
-        Plotly.addTraces(combinedGraph, histogramTrace);
+        // Add new histogram trace with white color for combined view
+        const histTrace = createHistogramForColor([255, 255, 255]);
+        Plotly.addTraces(combinedGraph, histTrace);
         
         // Update layout for y2 axis
         Plotly.relayout(combinedGraph, {
           'yaxis2': {
             overlaying: 'y',
             side: 'right',
-            range: [0, 1],
+            range: [0, 0.9],
             showgrid: false,
             zeroline: false,
             showticklabels: false,
-            showline: false
+            showline: false,
+            fixedrange: true
           }
         });
       } else if (viewMode === 'separate') {
+        // Define colors for each graph matching the reference
+        const graphColors = [
+          [0, 188, 212],   // sRGB - cyan
+          [255, 152, 0],   // PQ - orange
+          [156, 39, 176]   // HLG - purple
+        ];
+        
         // Update separate graphs
-        [srgbGraph, pqGraph, hlgGraph].forEach(graph => {
+        [srgbGraph, pqGraph, hlgGraph].forEach((graph, index) => {
           if (!graph?.data) return;
           
           // Remove existing histogram if present
@@ -1019,19 +1118,21 @@
             Plotly.deleteTraces(graph, histogramIndex);
           }
           
-          // Add new histogram trace
-          Plotly.addTraces(graph, histogramTrace);
+          // Add new histogram trace with appropriate color
+          const histTrace = createHistogramForColor(graphColors[index]);
+          Plotly.addTraces(graph, histTrace);
           
           // Update layout for y2 axis
           Plotly.relayout(graph, {
             'yaxis2': {
               overlaying: 'y',
               side: 'right',
-              range: [0, 1],
+              range: [0, 0.9],
               showgrid: false,
               zeroline: false,
               showticklabels: false,
-              showline: false
+              showline: false,
+              fixedrange: true
             }
           });
         });
@@ -1051,80 +1152,142 @@
     
     try {
       if (viewMode === 'combined' && combinedGraph?.data) {
-        // For combined view, use restyle for better performance
+        // For combined view in EOTF, show 9 dots (3 RGB for each transfer function)
         const numTraces = combinedGraph.data.length;
-        let rIndex = -1, gIndex = -1, bIndex = -1;
+        const markerNames = ['sRGB-R', 'sRGB-G', 'sRGB-B', 'PQ-R', 'PQ-G', 'PQ-B', 'HLG-R', 'HLG-G', 'HLG-B'];
+        let markerIndices: number[] = new Array(9).fill(-1);
         
         // Find existing marker traces
         for (let i = 0; i < numTraces; i++) {
-          if (combinedGraph.data[i].name === 'R') rIndex = i;
-          else if (combinedGraph.data[i].name === 'G') gIndex = i;
-          else if (combinedGraph.data[i].name === 'B') bIndex = i;
+          const idx = markerNames.indexOf(combinedGraph.data[i].name);
+          if (idx >= 0) markerIndices[idx] = i;
         }
         
         if (transferMode === 'eotf') {
-          // EOTF: input signal -> output brightness
-          const rBrightness = TransferFunctions.sRGB.decode(r) * 100;
-          const gBrightness = TransferFunctions.sRGB.decode(g) * 100;
-          const bBrightness = TransferFunctions.sRGB.decode(b) * 100;
+          // EOTF: input signal -> output brightness for each curve
+          const updates = {
+            x: [],
+            y: []
+          };
+          const newTraces = [];
           
-          if (rIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[r]], y: [[rBrightness]]}, rIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [r], y: [rBrightness], type: 'scatter', mode: 'markers',
-              marker: { color: 'red', size: 8 }, name: 'R', showlegend: false
-            });
+          // Calculate brightness for each transfer function
+          const srgbBrightness = {
+            r: TransferFunctions.sRGB.decode(r) * 100,
+            g: TransferFunctions.sRGB.decode(g) * 100,
+            b: TransferFunctions.sRGB.decode(b) * 100
+          };
+          
+          const pqBrightness = {
+            r: TransferFunctions.PQ.decode(r) * 100,
+            g: TransferFunctions.PQ.decode(g) * 100,
+            b: TransferFunctions.PQ.decode(b) * 100
+          };
+          
+          const hlgBrightness = {
+            r: TransferFunctions.HLG.signalToNits(r),
+            g: TransferFunctions.HLG.signalToNits(g),
+            b: TransferFunctions.HLG.signalToNits(b)
+          };
+          
+          // Prepare data for all 9 points
+          const pointsData = [
+            { x: r, y: srgbBrightness.r, color: 'red', name: 'sRGB-R' },
+            { x: g, y: srgbBrightness.g, color: 'green', name: 'sRGB-G' },
+            { x: b, y: srgbBrightness.b, color: 'blue', name: 'sRGB-B' },
+            { x: r, y: pqBrightness.r, color: 'red', name: 'PQ-R' },
+            { x: g, y: pqBrightness.g, color: 'green', name: 'PQ-G' },
+            { x: b, y: pqBrightness.b, color: 'blue', name: 'PQ-B' },
+            { x: r, y: hlgBrightness.r, color: 'red', name: 'HLG-R' },
+            { x: g, y: hlgBrightness.g, color: 'green', name: 'HLG-G' },
+            { x: b, y: hlgBrightness.b, color: 'blue', name: 'HLG-B' }
+          ];
+          
+          // Update existing traces or create new ones
+          pointsData.forEach((point, idx) => {
+            if (markerIndices[idx] >= 0) {
+              updates.x.push([point.x]);
+              updates.y.push([point.y]);
+            } else {
+              newTraces.push({
+                x: [point.x],
+                y: [point.y],
+                type: 'scatter',
+                mode: 'markers',
+                marker: { color: point.color, size: 8 },
+                name: point.name,
+                showlegend: false
+              });
+            }
+          });
+          
+          // Apply updates for existing traces
+          const existingIndices = markerIndices.filter(i => i >= 0);
+          if (existingIndices.length > 0 && updates.x.length > 0) {
+            Plotly.restyle(combinedGraph, {x: updates.x, y: updates.y}, existingIndices);
           }
           
-          if (gIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[g]], y: [[gBrightness]]}, gIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [g], y: [gBrightness], type: 'scatter', mode: 'markers',
-              marker: { color: 'green', size: 8 }, name: 'G', showlegend: false
-            });
-          }
-          
-          if (bIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[b]], y: [[bBrightness]]}, bIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [b], y: [bBrightness], type: 'scatter', mode: 'markers',
-              marker: { color: 'blue', size: 8 }, name: 'B', showlegend: false
-            });
+          // Add new traces
+          if (newTraces.length > 0) {
+            Plotly.addTraces(combinedGraph, newTraces);
           }
         } else {
-          // OETF: linear input -> encoded signal
+          // OETF: linear input -> encoded signal for each curve
           const rLinear = TransferFunctions.sRGB.decode(r);
           const gLinear = TransferFunctions.sRGB.decode(g);
           const bLinear = TransferFunctions.sRGB.decode(b);
           
-          if (rIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[rLinear]], y: [[r]]}, rIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [rLinear], y: [r], type: 'scatter', mode: 'markers',
-              marker: { color: 'red', size: 8 }, name: 'R', showlegend: false
-            });
+          const updates = {
+            x: [],
+            y: []
+          };
+          const newTraces = [];
+          
+          // Calculate encoded values for each transfer function
+          const pointsData = [
+            // sRGB points (only if in range)
+            { x: rLinear, y: rLinear <= 1 ? TransferFunctions.sRGB.encode(rLinear) : null, color: 'red', name: 'sRGB-R' },
+            { x: gLinear, y: gLinear <= 1 ? TransferFunctions.sRGB.encode(gLinear) : null, color: 'green', name: 'sRGB-G' },
+            { x: bLinear, y: bLinear <= 1 ? TransferFunctions.sRGB.encode(bLinear) : null, color: 'blue', name: 'sRGB-B' },
+            // PQ points (scale linear to PQ's expected range)
+            { x: rLinear, y: TransferFunctions.PQ.encode(rLinear), color: 'red', name: 'PQ-R' },
+            { x: gLinear, y: TransferFunctions.PQ.encode(gLinear), color: 'green', name: 'PQ-G' },
+            { x: bLinear, y: TransferFunctions.PQ.encode(bLinear), color: 'blue', name: 'PQ-B' },
+            // HLG points
+            { x: rLinear, y: TransferFunctions.HLG.encode(rLinear), color: 'red', name: 'HLG-R' },
+            { x: gLinear, y: TransferFunctions.HLG.encode(gLinear), color: 'green', name: 'HLG-G' },
+            { x: bLinear, y: TransferFunctions.HLG.encode(bLinear), color: 'blue', name: 'HLG-B' }
+          ];
+          
+          // Update existing traces or create new ones
+          pointsData.forEach((point, idx) => {
+            if (point.y !== null) {
+              if (markerIndices[idx] >= 0) {
+                updates.x.push([point.x]);
+                updates.y.push([point.y]);
+              } else {
+                newTraces.push({
+                  x: [point.x],
+                  y: [point.y],
+                  type: 'scatter',
+                  mode: 'markers',
+                  marker: { color: point.color, size: 8 },
+                  name: point.name,
+                  showlegend: false
+                });
+              }
+            }
+          });
+          
+          // Apply updates for existing traces
+          const existingIndices = markerIndices.filter(i => i >= 0);
+          if (existingIndices.length > 0 && updates.x.length > 0) {
+            Plotly.restyle(combinedGraph, {x: updates.x, y: updates.y}, existingIndices);
           }
           
-          if (gIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[gLinear]], y: [[g]]}, gIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [gLinear], y: [g], type: 'scatter', mode: 'markers',
-              marker: { color: 'green', size: 8 }, name: 'G', showlegend: false
-            });
-          }
-          
-          if (bIndex >= 0) {
-            Plotly.restyle(combinedGraph, {x: [[bLinear]], y: [[b]]}, bIndex);
-          } else {
-            Plotly.addTraces(combinedGraph, {
-              x: [bLinear], y: [b], type: 'scatter', mode: 'markers',
-              marker: { color: 'blue', size: 8 }, name: 'B', showlegend: false
-            });
+          // Add new traces
+          if (newTraces.length > 0) {
+            Plotly.addTraces(combinedGraph, newTraces);
           }
         }
       } else if (viewMode === 'separate') {
@@ -1579,6 +1742,30 @@
 
   input[type="checkbox"] {
     accent-color: #4a9eff;
+  }
+  
+  /* Plotly toolbar active state styling */
+  :global(.modebar-btn.active) {
+    background-color: rgba(74, 158, 255, 0.3) !important;
+    border: 1px solid #4a9eff !important;
+    border-radius: 3px;
+  }
+  
+  :global(.modebar-btn:hover) {
+    background-color: rgba(74, 158, 255, 0.2) !important;
+  }
+  
+  :global(.modebar) {
+    background: rgba(26, 26, 26, 0.9) !important;
+    border-radius: 4px;
+  }
+  
+  :global(.modebar-btn path) {
+    fill: #e0e0e0 !important;
+  }
+  
+  :global(.modebar-btn.active path) {
+    fill: #4a9eff !important;
   }
   
   .toolbar-container {
