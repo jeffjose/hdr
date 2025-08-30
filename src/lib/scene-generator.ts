@@ -107,35 +107,29 @@ export function generateSampleImage(type: string, width: number = 800, height: n
       break;
 
     case 'city':
-      // Night sky
-      ctx.fillStyle = '#1a1a2e';
+      // Dark night sky gradient
+      const nightGradient = ctx.createLinearGradient(0, 0, 0, height);
+      nightGradient.addColorStop(0, 'rgb(10, 10, 40)');
+      nightGradient.addColorStop(1, 'rgb(30, 30, 60)');
+      ctx.fillStyle = nightGradient;
       ctx.fillRect(0, 0, width, height);
       
-      // Stars
-      ctx.fillStyle = '#ffffff';
-      for (let i = 0; i < 50; i++) {
-        ctx.fillRect(Math.random() * width, Math.random() * height * 0.5, 1, 1);
-      }
-      
-      // Buildings
-      const buildings = 15;
-      for (let i = 0; i < buildings; i++) {
-        const bWidth = Math.random() * 60 + 30;
+      // Buildings with windows
+      for (let i = 0; i < 8; i++) {
         const bHeight = Math.random() * height * 0.6 + height * 0.2;
-        const x = Math.random() * (width - bWidth);
+        const bWidth = width / 10;
+        const bX = i * (width / 8);
         
         // Building
-        ctx.fillStyle = `hsl(${Math.random() * 60 + 200}, 30%, 20%)`;
-        ctx.fillRect(x, height - bHeight, bWidth, bHeight);
+        ctx.fillStyle = `rgb(${20 + i * 5}, ${20 + i * 5}, ${30 + i * 5})`;
+        ctx.fillRect(bX, height - bHeight, bWidth, bHeight);
         
         // Windows
-        const windowRows = Math.floor(bHeight / 20);
-        const windowCols = Math.floor(bWidth / 15);
-        ctx.fillStyle = '#ffff99';
-        for (let r = 0; r < windowRows; r++) {
-          for (let c = 0; c < windowCols; c++) {
+        for (let w = 0; w < 4; w++) {
+          for (let h = 0; h < Math.floor(bHeight / 30); h++) {
             if (Math.random() > 0.3) {
-              ctx.fillRect(x + c * 15 + 3, height - bHeight + r * 20 + 5, 8, 10);
+              ctx.fillStyle = `rgb(255, ${200 + Math.random() * 55}, 100)`;
+              ctx.fillRect(bX + w * 15 + 10, height - bHeight + h * 30 + 10, 10, 15);
             }
           }
         }
@@ -143,49 +137,53 @@ export function generateSampleImage(type: string, width: number = 800, height: n
       break;
 
     case 'fire':
-      const fire = ctx.createRadialGradient(width / 2, height * 0.8, 0, width / 2, height * 0.8, width / 2);
-      fire.addColorStop(0, '#ffff00');
-      fire.addColorStop(0.3, '#ff8800');
-      fire.addColorStop(0.6, '#ff0000');
-      fire.addColorStop(1, '#330000');
-      ctx.fillStyle = fire;
+      // Dark background
+      ctx.fillStyle = 'rgb(10, 5, 0)';
       ctx.fillRect(0, 0, width, height);
       
-      // Smoke
-      ctx.fillStyle = 'rgba(50, 50, 50, 0.3)';
-      for (let i = 0; i < 10; i++) {
-        ctx.beginPath();
-        ctx.arc(width / 2 + (Math.random() - 0.5) * 200, height * 0.2 + Math.random() * 100, Math.random() * 40 + 20, 0, Math.PI * 2);
-        ctx.fill();
+      // Fire gradient effect
+      for (let i = 0; i < 30; i++) {
+        const fireGrad = ctx.createRadialGradient(
+          width/2 + (Math.random() - 0.5) * 100,
+          height * 0.7 + (Math.random() - 0.5) * 50,
+          0,
+          width/2,
+          height * 0.7,
+          100 + Math.random() * 50
+        );
+        fireGrad.addColorStop(0, `rgba(255, ${200 + Math.random() * 55}, 0, 0.8)`);
+        fireGrad.addColorStop(0.5, `rgba(255, ${100 + Math.random() * 50}, 0, 0.4)`);
+        fireGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        ctx.fillStyle = fireGrad;
+        ctx.fillRect(0, 0, width, height);
       }
       break;
 
     case 'ocean':
-      const ocean = ctx.createLinearGradient(0, 0, 0, height);
-      ocean.addColorStop(0, '#001f3f');
-      ocean.addColorStop(0.5, '#003d7a');
-      ocean.addColorStop(1, '#007acc');
-      ctx.fillStyle = ocean;
+      // Ocean gradient
+      const oceanGrad = ctx.createLinearGradient(0, 0, 0, height);
+      oceanGrad.addColorStop(0, 'rgb(135, 206, 250)'); // sky blue
+      oceanGrad.addColorStop(0.4, 'rgb(100, 180, 220)');
+      oceanGrad.addColorStop(0.5, 'rgb(0, 119, 190)'); // ocean blue
+      oceanGrad.addColorStop(1, 'rgb(0, 50, 100)'); // deep ocean
+      ctx.fillStyle = oceanGrad;
       ctx.fillRect(0, 0, width, height);
       
-      // Waves
+      // Wave patterns
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 2;
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 5; i++) {
         ctx.beginPath();
-        ctx.moveTo(0, height * 0.3 + i * 20 + Math.sin(i) * 10);
-        for (let x = 0; x <= width; x += 10) {
-          ctx.lineTo(x, height * 0.3 + i * 20 + Math.sin(x / 50 + i) * 10);
+        const y = height * 0.4 + i * 20;
+        for (let x = 0; x < width; x += 10) {
+          const waveY = y + Math.sin((x + i * 50) * 0.02) * 10;
+          if (x === 0) {
+            ctx.moveTo(x, waveY);
+          } else {
+            ctx.lineTo(x, waveY);
+          }
         }
         ctx.stroke();
-      }
-      
-      // Foam
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      for (let i = 0; i < 20; i++) {
-        ctx.beginPath();
-        ctx.arc(Math.random() * width, height * 0.3 + Math.random() * height * 0.4, Math.random() * 3 + 1, 0, Math.PI * 2);
-        ctx.fill();
       }
       break;
   }

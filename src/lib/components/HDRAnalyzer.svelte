@@ -22,7 +22,9 @@
   let imageData = $state<ImageData | null>(null);
   let currentHoverPixel = $state<{x: number, y: number, r: number, g: number, b: number} | null>(null);
   let viewMode = $state<'separate' | 'combined'>('combined');
-  let transferMode = $state<'oetf' | 'eotf'>('eotf');
+  let transferMode = $state<'oetf' | 'eotf'>(
+    (typeof localStorage !== 'undefined' && localStorage.getItem('transferMode') as 'oetf' | 'eotf') || 'eotf'
+  );
   let peakBrightness = $state(1000);
   let histogram = $state<ReturnType<typeof calculateHistogram> | null>(null);
   let hdrMode = $state(false);
@@ -57,6 +59,11 @@
   let isDragging = $state(false);
   let startX = $state(0);
   let startLeftWidth = $state(0);
+  
+  // Throttling for graph updates
+  let updateGraphTimeout: number | null = null;
+  let lastUpdateTime = 0;
+  const THROTTLE_DELAY = 16; // ~60fps
 
   // Transfer functions wrapper
   const TransferFunctions = {
@@ -442,85 +449,88 @@
       displaylogo: false
     };
 
-    const numPoints = 200;
+    const numPoints = 100;
 
-    // sRGB OETF
+    // sRGB OETF - SDR standard, linear values 0-1
     const srgbLayout: Partial<Layout> = {
       ...baseLayout,
-      title: "sRGB OETF (SDR only)",
+      title: "sRGB OETF (100 nits SDR)",
       xaxis: {
         ...baseLayout.xaxis,
-        title: "Scene Light Intensity (nits)",
-        range: [0, 200],
-        dtick: 50
+        title: "Linear Input",
+        range: [0, 1],
+        fixedrange: false
+      },
+      yaxis: {
+        ...baseLayout.yaxis,
+        range: [0, 1],
+        fixedrange: false
       }
     };
-    const srgbNits = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 200);
-    const srgbY = srgbNits.map(nits => {
-      const relative = nits / 100;
-      return relative <= 1 ? TransferFunctions.sRGB.encode(relative) : 1.0;
-    });
+    const linearValues = Array.from({ length: numPoints }, (_, i) => i / (numPoints - 1));
+    const srgbY = linearValues.map(v => TransferFunctions.sRGB.encode(v));
 
     const srgbData: Data[] = [{
-      x: srgbNits,
+      x: linearValues,
       y: srgbY,
       type: "scatter",
       mode: "lines",
       name: "sRGB",
       line: { color: "#00bcd4", width: 2 },
-      hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
     }];
 
     Plotly.newPlot(srgbGraph, srgbData, srgbLayout, config);
 
-    // PQ OETF
+    // PQ OETF - uses absolute scale where 1.0 = 100 nits, 100 = 10,000 nits
     const pqLayout: Partial<Layout> = {
       ...baseLayout,
       title: "PQ OETF (ST.2084)",
       xaxis: {
         ...baseLayout.xaxis,
-        title: "Scene Light Intensity (nits)",
-        range: [0, 10000],
-        dtick: 2000
+        title: "Linear Light Input (0=black, 1=100 nits, 100=10,000 nits)",
+        range: [0, 6], // Default view 0-600 nits
+        fixedrange: false
       }
     };
-    const pqNits = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 10000);
-    const pqY = pqNits.map(nits => TransferFunctions.PQ.encode(nits / 100));
+    const pqLinearValues = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 100);
+    const pqY = pqLinearValues.map(v => TransferFunctions.PQ.encode(v));
 
     const pqData: Data[] = [{
-      x: pqNits,
+      x: pqLinearValues,
       y: pqY,
       type: "scatter",
       mode: "lines",
       name: "PQ",
       line: { color: "#ff9800", width: 2 },
-      hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      hovertemplate: "X: %{x:.3f} (~%{text})<br>Y: %{y:.3f}<extra></extra>",
+      text: pqLinearValues.map(v => `${(v * 100).toFixed(0)} nits`)
     }];
 
     Plotly.newPlot(pqGraph, pqData, pqLayout, config);
 
-    // HLG OETF
+    // HLG OETF - relative scale where 1.0 = reference white, 12 = peak
     const hlgLayout: Partial<Layout> = {
       ...baseLayout,
       title: "HLG OETF (BT.2100)",
       xaxis: {
         ...baseLayout.xaxis,
-        title: "Scene Light Intensity (nits, relative)",
-        range: [0, 1200],
-        dtick: 200
+        title: "Linear Light Input (0=black, 1=ref white, 12=peak)",
+        range: [0, 6],
+        fixedrange: false
       }
     };
-    const hlgNits = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 1200);
-    const hlgY = hlgNits.map(nits => TransferFunctions.HLG.encode(nits / 100));
+    const hlgLinearValues = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 12);
+    const hlgY = hlgLinearValues.map(v => TransferFunctions.HLG.encode(v));
 
     const hlgData: Data[] = [{
-      x: hlgNits,
+      x: hlgLinearValues,
       y: hlgY,
       type: "scatter",
       mode: "lines",
       name: "HLG",
       line: { color: "#9c27b0", width: 2 },
-      hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+      hovertemplate: "X: %{x:.3f}<br>Y: %{y:.3f}<extra></extra>"
     }];
 
     Plotly.newPlot(hlgGraph, hlgData, hlgLayout, config);
@@ -537,10 +547,10 @@
       },
       margin: { t: 40, r: 30, b: 60, l: 70 },
       xaxis: {
-        title: "Scene Light Intensity (nits)",
+        title: "Linear Intensity",
         gridcolor: "#333",
         zerolinecolor: "#555",
-        range: [0, 2000],
+        range: [0, 6],
         autorange: false,
         fixedrange: false
       },
@@ -566,7 +576,22 @@
           color: "white"
         }
       },
-      title: "OETF (Camera/Encoding Curves)"
+      title: "OETF (Opto-Electronic Transfer Functions)",
+      annotations: [{
+        x: 1,
+        y: 1.0,
+        xref: "x",
+        yref: "y",
+        text: "Reference<br>White",
+        showarrow: true,
+        arrowhead: 2,
+        arrowsize: 1,
+        arrowwidth: 1,
+        arrowcolor: "#666",
+        ax: 30,
+        ay: -30,
+        font: { size: 10, color: "#999" }
+      }]
     };
 
     const config: Partial<Config> = {
@@ -575,39 +600,46 @@
     };
 
     const numPoints = 200;
-    const maxNits = 2000;
-    const nitsValues = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * maxNits);
+    // Create linear points from 0 to 12 (relative intensity)
+    const xLinear = Array.from({ length: numPoints }, (_, i) => (i / (numPoints - 1)) * 12);
+
+    // sRGB: Clips at 1.0
+    const srgbY = xLinear.map(v => v <= 1 ? TransferFunctions.sRGB.encode(v) : 1.0);
+
+    // HLG: Can encode the full range
+    const hlgY = xLinear.map(v => TransferFunctions.HLG.encode(v));
+
+    // PQ: For comparison, though it uses absolute scale
+    const pqY = xLinear.map(v => TransferFunctions.PQ.encode(v));
 
     const traces: Data[] = [
       {
-        x: nitsValues,
-        y: nitsValues.map(nits => {
-          const relative = nits / 100;
-          return relative <= 1 ? TransferFunctions.sRGB.encode(relative) : 1.0;
-        }),
+        x: xLinear,
+        y: srgbY,
         type: "scatter",
         mode: "lines",
-        name: "sRGB (100 nits max)",
+        name: "sRGB",
         line: { color: "#00bcd4", width: 2 },
-        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+        hovertemplate: "sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
       },
       {
-        x: nitsValues,
-        y: nitsValues.map(nits => TransferFunctions.PQ.encode(nits / 100)),
-        type: "scatter",
-        mode: "lines",
-        name: "PQ (10000 nits)",
-        line: { color: "#ff9800", width: 2 },
-        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
-      },
-      {
-        x: nitsValues,
-        y: nitsValues.map(nits => TransferFunctions.HLG.encode(nits / 100)),
+        x: xLinear,
+        y: hlgY,
         type: "scatter",
         mode: "lines",
         name: "HLG",
         line: { color: "#9c27b0", width: 2 },
-        hovertemplate: "Scene: %{x:.0f} nits<br>Signal: %{y:.3f}<extra></extra>"
+        hovertemplate: "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+      },
+      {
+        x: xLinear,
+        y: pqY,
+        type: "scatter",
+        mode: "lines",
+        name: "PQ (ST.2084)",
+        line: { color: "#ff9800", width: 2 },
+        hovertemplate: "PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
+        text: xLinear.map(v => `${(v * 100).toFixed(0)} nits`)
       }
     ];
 
@@ -789,19 +821,56 @@
       hoverIndicator.style.top = `${e.clientY}px`;
       hoverIndicator.style.display = 'block';
       
-      // Update graphs with hover data
-      updateGraphsWithHover();
+      // Throttle graph updates to 60fps
+      const now = Date.now();
+      if (now - lastUpdateTime > THROTTLE_DELAY) {
+        lastUpdateTime = now;
+        updateGraphsWithHover();
+      } else {
+        if (updateGraphTimeout) clearTimeout(updateGraphTimeout);
+        updateGraphTimeout = setTimeout(() => {
+          updateGraphsWithHover();
+          lastUpdateTime = Date.now();
+        }, THROTTLE_DELAY) as unknown as number;
+      }
     }
   }
 
   function handleImageLeave() {
     currentHoverPixel = null;
     hoverIndicator.style.display = 'none';
+    
+    // Clear any pending graph update
+    if (updateGraphTimeout) {
+      clearTimeout(updateGraphTimeout);
+      updateGraphTimeout = null;
+    }
+    
+    // Clear hover markers from graphs
+    if (Plotly) {
+      if (viewMode === 'combined' && combinedGraph?._fullData) {
+        const baseTraces = combinedGraph._fullData.filter((trace: any) => 
+          !['R', 'G', 'B'].includes(trace.name)
+        );
+        Plotly.react(combinedGraph, baseTraces, combinedGraph._fullLayout);
+      } else {
+        [srgbGraph, pqGraph, hlgGraph].forEach(graph => {
+          if (graph?._fullData) {
+            const baseTraces = graph._fullData.filter((trace: any) => 
+              !['R', 'G', 'B'].includes(trace.name)
+            );
+            Plotly.react(graph, baseTraces, graph._fullLayout);
+          }
+        });
+      }
+    }
   }
 
   function toggleTransferMode(mode: 'oetf' | 'eotf') {
     transferMode = mode;
-    localStorage.setItem('transferMode', mode);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('transferMode', mode);
+    }
     initializeGraphs();
     updateImageInfo(currentSampleType);
     if (histogram) {
@@ -865,14 +934,146 @@
 
   function updateGraphsWithHistogram() {
     if (!histogram || !showHistogram || !Plotly) return;
-    // This would add histogram overlay to graphs
-    // Implementation depends on specific requirements
+    
+    // Create histogram trace
+    const histogramTrace = {
+      x: Array.from({ length: histogram.bins }, (_, i) => i / histogram.bins),
+      y: histogram.luminance.map(v => v / Math.max(...histogram.luminance) * 0.3), // Scale to 30% of graph height
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tozeroy',
+      fillcolor: 'rgba(255, 255, 255, 0.1)',
+      line: {
+        color: 'rgba(255, 255, 255, 0.3)',
+        width: 1
+      },
+      name: 'Histogram',
+      yaxis: 'y2',
+      hoverinfo: 'skip'
+    };
+    
+    // Update graphs based on view mode
+    if (viewMode === 'combined') {
+      const currentData = combinedGraph._fullData || [];
+      const transferFunctionTraces = currentData.filter((trace: any) => trace.name !== 'Histogram');
+      
+      Plotly.react(combinedGraph, [...transferFunctionTraces, histogramTrace], {
+        ...combinedGraph._fullLayout,
+        yaxis2: {
+          overlaying: 'y',
+          side: 'right',
+          range: [0, 1],
+          showgrid: false,
+          zeroline: false,
+          showticklabels: false,
+          showline: false
+        }
+      });
+    } else {
+      // Update separate graphs
+      const graphs = [srgbGraph, pqGraph, hlgGraph];
+      graphs.forEach(graph => {
+        if (!graph || !graph._fullData) return;
+        
+        const currentData = graph._fullData;
+        const transferFunctionTraces = currentData.filter((trace: any) => trace.name !== 'Histogram');
+        
+        Plotly.react(graph, [...transferFunctionTraces, histogramTrace], {
+          ...graph._fullLayout,
+          yaxis2: {
+            overlaying: 'y',
+            side: 'right',
+            range: [0, 1],
+            showgrid: false,
+            zeroline: false,
+            showticklabels: false,
+            showline: false
+          }
+        });
+      });
+    }
   }
   
   function updateGraphsWithHover() {
     if (!currentHoverPixel || !Plotly) return;
-    // This would update graphs with hover pixel data
-    // Implementation depends on specific requirements
+    
+    // Normalize RGB values to 0-1
+    const r = currentHoverPixel.r / 255;
+    const g = currentHoverPixel.g / 255;
+    const b = currentHoverPixel.b / 255;
+    
+    // Create hover markers for R, G, B channels
+    const createMarkers = (transform: (v: number) => number) => {
+      return [
+        {
+          x: [transferMode === 'oetf' ? transform(r) : r],
+          y: [transferMode === 'oetf' ? r : transform(r)],
+          type: 'scatter',
+          mode: 'markers',
+          marker: { color: 'red', size: 8 },
+          name: 'R',
+          showlegend: false,
+          hovertemplate: 'R: %{x:.3f}, %{y:.3f}<extra></extra>'
+        },
+        {
+          x: [transferMode === 'oetf' ? transform(g) : g],
+          y: [transferMode === 'oetf' ? g : transform(g)],
+          type: 'scatter',
+          mode: 'markers',
+          marker: { color: 'green', size: 8 },
+          name: 'G',
+          showlegend: false,
+          hovertemplate: 'G: %{x:.3f}, %{y:.3f}<extra></extra>'
+        },
+        {
+          x: [transferMode === 'oetf' ? transform(b) : b],
+          y: [transferMode === 'oetf' ? b : transform(b)],
+          type: 'scatter',
+          mode: 'markers',
+          marker: { color: 'blue', size: 8 },
+          name: 'B',
+          showlegend: false,
+          hovertemplate: 'B: %{x:.3f}, %{y:.3f}<extra></extra>'
+        }
+      ];
+    };
+    
+    if (viewMode === 'combined') {
+      // Update combined graph with hover markers
+      const currentData = combinedGraph._fullData || [];
+      const baseTraces = currentData.filter((trace: any) => 
+        !['R', 'G', 'B'].includes(trace.name)
+      );
+      
+      // Use appropriate transform based on transfer mode
+      const markers = transferMode === 'oetf' 
+        ? createMarkers(TransferFunctions.sRGB.decode)
+        : createMarkers(TransferFunctions.sRGB.encode);
+      
+      Plotly.react(combinedGraph, [...baseTraces, ...markers], combinedGraph._fullLayout);
+    } else {
+      // Update separate graphs
+      const graphs = [
+        { element: srgbGraph, transform: TransferFunctions.sRGB },
+        { element: pqGraph, transform: TransferFunctions.PQ },
+        { element: hlgGraph, transform: TransferFunctions.HLG }
+      ];
+      
+      graphs.forEach(({ element, transform }) => {
+        if (!element || !element._fullData) return;
+        
+        const currentData = element._fullData;
+        const baseTraces = currentData.filter((trace: any) => 
+          !['R', 'G', 'B'].includes(trace.name)
+        );
+        
+        const markers = transferMode === 'oetf'
+          ? createMarkers(transform.decode)
+          : createMarkers(transform.encode);
+        
+        Plotly.react(element, [...baseTraces, ...markers], element._fullLayout);
+      });
+    }
   }
   
   function handleDragOver(e: DragEvent) {
