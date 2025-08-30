@@ -1711,7 +1711,8 @@ function updateCombinedOETFGraph() {
         line: { color: "#00bcd4", width: 2 },
         connectgaps: false, // Don't connect over null values
         hovertemplate:
-          "sRGB<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+          "sRGB<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
+        text: xValues.map((v) => `${(v * 100).toFixed(0)} nits`)
       },
       {
         x: xValues,
@@ -1733,7 +1734,8 @@ function updateCombinedOETFGraph() {
         line: { color: "#9c27b0", width: 2 },
         connectgaps: false, // Don't connect over null values
         hovertemplate:
-          "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
+          "HLG<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
+        text: xValues.map((v) => `${(v * 100).toFixed(0)} nits`)
       }
     );
   }
