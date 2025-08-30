@@ -1316,8 +1316,8 @@ function updateCombinedGraphHighlight(pixel) {
       // Order must match how they're created in updateCombinedOETFGraph
 
       // sRGB points (first 3, but may be skipped if out of range)
-      // HLG points (next 3)
-      // PQ points (last 3)
+      // PQ points (next 3)
+      // HLG points (last 3)
 
       // For simplicity, always push 9 values even if some are null
       // sRGB R, G, B
@@ -1340,6 +1340,14 @@ function updateCombinedGraphHighlight(pixel) {
         ]
       );
 
+      // PQ R, G, B
+      updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
+      updates.y.push(
+        [TransferFunctions.PQ.encode(pixel.linear.r)],
+        [TransferFunctions.PQ.encode(pixel.linear.g)],
+        [TransferFunctions.PQ.encode(pixel.linear.b)]
+      );
+
       // HLG R, G, B - normalize like the main curve
       const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
       updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
@@ -1347,14 +1355,6 @@ function updateCombinedGraphHighlight(pixel) {
         [pixel.linear.r <= 12 ? TransferFunctions.HLG.encode(pixel.linear.r) / peakHlgSignal : null],
         [pixel.linear.g <= 12 ? TransferFunctions.HLG.encode(pixel.linear.g) / peakHlgSignal : null],
         [pixel.linear.b <= 12 ? TransferFunctions.HLG.encode(pixel.linear.b) / peakHlgSignal : null]
-      );
-
-      // PQ R, G, B
-      updates.x.push([pixel.linear.r], [pixel.linear.g], [pixel.linear.b]);
-      updates.y.push(
-        [TransferFunctions.PQ.encode(pixel.linear.r)],
-        [TransferFunctions.PQ.encode(pixel.linear.g)],
-        [TransferFunctions.PQ.encode(pixel.linear.b)]
       );
     }
 
@@ -1715,17 +1715,6 @@ function updateCombinedOETFGraph() {
       },
       {
         x: xValues,
-        y: hlgY,
-        type: "scatter",
-        mode: "lines",
-        name: "HLG",
-        line: { color: "#9c27b0", width: 2 },
-        connectgaps: false, // Don't connect over null values
-        hovertemplate:
-          "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
-      },
-      {
-        x: xValues,
         y: pqY,
         type: "scatter",
         mode: "lines",
@@ -1734,6 +1723,17 @@ function updateCombinedOETFGraph() {
         hovertemplate:
           "PQ<br>Linear: %{x:.2f} (~%{text})<br>Signal: %{y:.3f}<extra></extra>",
         text: xValues.map((v) => `${(v * 100).toFixed(0)} nits`)
+      },
+      {
+        x: xValues,
+        y: hlgY,
+        type: "scatter",
+        mode: "lines",
+        name: "HLG",
+        line: { color: "#9c27b0", width: 2 },
+        connectgaps: false, // Don't connect over null values
+        hovertemplate:
+          "HLG<br>Linear: %{x:.2f}<br>Signal: %{y:.3f}<extra></extra>"
       }
     );
   }
@@ -1807,57 +1807,6 @@ function updateCombinedOETFGraph() {
       }
     );
 
-    // HLG hover points - normalize like the main curve
-    const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
-    const hlgSymbol = "diamond";
-    traces.push(
-      {
-        x: [currentHoverPixel.linear.r],
-        y: [currentHoverPixel.linear.r <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.r) / peakHlgSignal : null],
-        type: "scatter",
-        mode: "markers",
-        name: `Hover HLG R`,
-        marker: {
-          color: "#ff0000",
-          size: 12,
-          line: { color: "white", width: 2 },
-          symbol: hlgSymbol
-        },
-        hovertemplate: `Hover HLG R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-        showlegend: false
-      },
-      {
-        x: [currentHoverPixel.linear.g],
-        y: [currentHoverPixel.linear.g <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.g) / peakHlgSignal : null],
-        type: "scatter",
-        mode: "markers",
-        name: `Hover HLG G`,
-        marker: {
-          color: "#00ff00",
-          size: 12,
-          line: { color: "white", width: 2 },
-          symbol: hlgSymbol
-        },
-        hovertemplate: `Hover HLG G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-        showlegend: false
-      },
-      {
-        x: [currentHoverPixel.linear.b],
-        y: [currentHoverPixel.linear.b <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.b) / peakHlgSignal : null],
-        type: "scatter",
-        mode: "markers",
-        name: `Hover HLG B`,
-        marker: {
-          color: "#0000ff",
-          size: 12,
-          line: { color: "white", width: 2 },
-          symbol: hlgSymbol
-        },
-        hovertemplate: `Hover HLG B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
-        showlegend: false
-      }
-    );
-
     // PQ hover points - PQ curve uses x values that are already in the same units
     // as our linear values (1.0 = 100 nits), so no scaling needed
     const pqSymbol = "square";
@@ -1905,6 +1854,57 @@ function updateCombinedOETFGraph() {
           symbol: pqSymbol
         },
         hovertemplate: `Hover PQ B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      }
+    );
+
+    // HLG hover points - normalize like the main curve
+    const peakHlgSignal = TransferFunctions.HLG.encode(12.0); // The peak is ~1.45
+    const hlgSymbol = "diamond";
+    traces.push(
+      {
+        x: [currentHoverPixel.linear.r],
+        y: [currentHoverPixel.linear.r <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.r) / peakHlgSignal : null],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG R`,
+        marker: {
+          color: "#ff0000",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG R<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.g],
+        y: [currentHoverPixel.linear.g <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.g) / peakHlgSignal : null],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG G`,
+        marker: {
+          color: "#00ff00",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG G<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
+        showlegend: false
+      },
+      {
+        x: [currentHoverPixel.linear.b],
+        y: [currentHoverPixel.linear.b <= 12 ? TransferFunctions.HLG.encode(currentHoverPixel.linear.b) / peakHlgSignal : null],
+        type: "scatter",
+        mode: "markers",
+        name: `Hover HLG B`,
+        marker: {
+          color: "#0000ff",
+          size: 12,
+          line: { color: "white", width: 2 },
+          symbol: hlgSymbol
+        },
+        hovertemplate: `Hover HLG B<br>Linear: %{x:.3f}<br>Signal: %{y:.3f}<extra></extra>`,
         showlegend: false
       }
     );
