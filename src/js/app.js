@@ -2851,8 +2851,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (separateView) {
     separateView.addEventListener("click", () => {
       viewMode = "separate";
-      separateView.classList.add("toolbar-btn-active");
-      if (combinedView) combinedView.classList.remove("toolbar-btn-active");
+      separateView.classList.add("active");
+      if (combinedView) combinedView.classList.remove("active");
 
     // Show separate graphs, hide combined
     document
@@ -2879,8 +2879,8 @@ document.addEventListener("DOMContentLoaded", function () {
   if (combinedView) {
     combinedView.addEventListener("click", () => {
       viewMode = "combined";
-      combinedView.classList.add("toolbar-btn-active");
-      if (separateView) separateView.classList.remove("toolbar-btn-active");
+      combinedView.classList.add("active");
+      if (separateView) separateView.classList.remove("active");
 
     // Hide separate graphs, show combined
     document
@@ -2967,8 +2967,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Initialize with combined view
   if (viewMode === "combined") {
-    if (combinedView) combinedView.classList.add("toolbar-btn-active");
-    if (separateView) separateView.classList.remove("toolbar-btn-active");
+    if (combinedView) combinedView.classList.add("active");
+    if (separateView) separateView.classList.remove("active");
 
     // Hide separate graphs, show combined
     document
@@ -3145,14 +3145,14 @@ document.addEventListener("DOMContentLoaded", function () {
     if (layout === "top") {
       mainContainer.classList.remove("layout-side");
       mainContainer.classList.add("layout-top");
-      topLayoutBtn.classList.add("toolbar-btn-active");
-      sideLayoutBtn.classList.remove("toolbar-btn-active");
+      topLayoutBtn.classList.add("active");
+      sideLayoutBtn.classList.remove("active");
       currentLayout = "top";
     } else {
       mainContainer.classList.remove("layout-top");
       mainContainer.classList.add("layout-side");
-      sideLayoutBtn.classList.add("toolbar-btn-active");
-      topLayoutBtn.classList.remove("toolbar-btn-active");
+      sideLayoutBtn.classList.add("active");
+      topLayoutBtn.classList.remove("active");
       currentLayout = "side";
     }
 
