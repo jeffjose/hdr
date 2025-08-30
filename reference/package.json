@@ -1,0 +1,25 @@
+{
+	"name": "hdr-image-analyzer",
+	"version": "1.0.0",
+	"description": "Advanced HDR image analysis tool with real-time visualization",
+	"scripts": {
+		"dev": "live-server --port=8080 --host=0.0.0.0",
+		"start": "live-server",
+		"test": "vitest",
+		"test:run": "vitest run"
+	},
+	"packageManager": "pnpm@9.15.2",
+	"devDependencies": {
+		"jsdom": "^26.1.0",
+		"live-server": "^1.2.2",
+		"vitest": "^3.2.4"
+	},
+	"keywords": [
+		"hdr",
+		"image-analysis",
+		"color-grading",
+		"transfer-functions"
+	],
+	"author": "",
+	"license": "MIT"
+}
